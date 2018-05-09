@@ -7,10 +7,11 @@ from proxy import Proxy
 from crawler_js import Crawler
 from conn_sql import Sql
 from mail import Mail
-from CONFIG import CRAWL_TIME, UPDATE_TIME, Email_TIME, PROXY_CRAWL, THREAD_NUM
+from CONFIG import ITEM_CRAWL_TIME, UPDATE_TIME, Email_TIME, PROXY_CRAWL, THREAD_NUM
 import logging
 import logging.config
 import time
+from os import path  # Supervisor cannot find logger.conf
 
 CRAWLER_POOL = Pool(THREAD_NUM)
 
@@ -90,7 +91,7 @@ class Entrance(object):
         sq = Sql()
         items = sq.check_item_need_to_remind()
         logging.warning('This loop sent email: %s', items)
-        for item in items:  # email, item_name, item_price, user_price, item_id, column_id
+        for item in items[0]:  # email, item_name, item_price, user_price, item_id, column_id
             item_url = 'https://item.jd.com/' + str(item[4]) + '.html'
             email_text = '您监控的物品：' + item[1] + '，现在价格为：' + item[2] + \
                          '，您设定的价格为：' + item[3] + '，赶紧购买吧！' + item_url
@@ -111,12 +112,13 @@ class Entrance(object):
             items_info = CRAWLER_POOL.map(self._item_info_update, items)  # return two values as a tuple
             logging.warning('This loop updated information: %s', items_info)
             self._send_email()
-            time.sleep(CRAWL_TIME)
+            time.sleep(ITEM_CRAWL_TIME)
 
 
 if __name__ == '__main__':
 
-    logging.config.fileConfig("logger.conf")
+    log_file_path = path.join(path.dirname(path.abspath(__file__)), 'logger.conf')
+    logging.config.fileConfig(log_file_path)
     logger = logging.getLogger("console_file_2")
     ent = Entrance()
     ent.run()
