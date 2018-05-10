@@ -15,7 +15,7 @@ class Crawler(object):
 
     def __init__(self, proxy=None):
         chrome_options = Options()
-        chrome_options.add_argument('--headless')
+        #chrome_options.add_argument('--headless')
         chrome_options.add_argument('--disable-gpu')
         chrome_options.add_argument('--no-sandbox')  # required when running as root user. otherwise you would get no sandbox 
         prefs = {"profile.managed_default_content_settings.images": 2}
@@ -36,23 +36,36 @@ class Crawler(object):
 
     def get_jd_item(self, item_id):
         item_info = ()
+        name = price = subtitle = plus_price = ''
         # url = 'http://httpbin.org/ip'
         url = 'https://item.jd.com/' + item_id + '.html'
         try:
             self.chrome.get(url)
             # print('source', self.chrome.page_source)
-            name = self.chrome.find_element_by_xpath("//*[@class='sku-name']").text
-            price = self.chrome.find_element_by_xpath("//*[@class='p-price']").text
-            subtitle = self.chrome.find_element_by_xpath("//*[@id='p-ad']").text
-            plus_price = self.chrome.find_element_by_xpath("//*[@class='p-price-plus']").text  # may get null
+            if self.get_elem("//*[@class='sku-name']"):
+                name = self.chrome.find_element_by_xpath("//*[@class='sku-name']").text
+            if self.get_elem("//*[@class='p-price']"):
+                price = self.chrome.find_element_by_xpath("//*[@class='p-price']").text
+            if self.get_elem("//*[@id='p-ad']"):
+                subtitle = self.chrome.find_element_by_xpath("//*[@id='p-ad']").text
+            if self.get_elem("//*[@class='p-price-plus']"):
+                plus_price = self.chrome.find_element_by_xpath("//*[@class='p-price-plus']").text  # may get null
+
             item_info = (name, price[1:], subtitle, plus_price[1:])
             logging.info('Crawl SUCCESS: %s', item_info)
-        except NoSuchElementException as e:
-            logging.warning('Crawl failure: %s', e)
         except TimeoutException as e:
             logging.warning('Crawl failure: %s', e)
+            
         self.chrome.quit()
         return item_info
+
+    def get_elem(self, path):
+        try:
+            self.chrome.find_element_by_xpath(path)
+        except NoSuchElementException as e:
+            logging.warning('Crawl failure: %s', e)
+            return False
+        return True
 
     def get_huihui_item(self, item_id):
         huihui_info = ()
