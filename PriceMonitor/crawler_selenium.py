@@ -15,6 +15,7 @@ class Crawler(object):
 
     def __init__(self, proxy=None):
         chrome_options = Options()
+        #chrome_options.set_headless(headless=True)
         chrome_options.add_argument('--headless')
         chrome_options.add_argument('--disable-gpu')
         chrome_options.add_argument('--no-sandbox')  # required when running as root user. otherwise you would get no sandbox 
