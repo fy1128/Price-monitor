@@ -34,15 +34,16 @@ class Sql(object):
         alert_items = []
         items = self.session.query(Monitor).all()
         for item in items:
-            if item.discount and float(item.discount) <= DISCOUNT_LIMIT:
-                user = self.session.query(User).filter_by(column_id=item.user_id)
-                alert_items.append([user[0].email, item.item_name, item.item_price,
-                                    item.discount, item.item_id, item.column_id, item.last_price])
-            if item.status == 1 and item.user_price:
-                if float(item.user_price) > float(item.item_price):  # User-defined monitor price items
+            if item.stock != 34:
+                if item.discount and float(item.discount) <= DISCOUNT_LIMIT:
                     user = self.session.query(User).filter_by(column_id=item.user_id)
-                    monitor_items.append([user[0].email, item.item_name, item.item_price,
-                                          item.user_price, item.item_id, item.column_id])
+                    alert_items.append([user[0].email, item.item_name, item.item_price,
+                                        item.discount, item.item_id, item.column_id, item.last_price])
+                if item.status == 1 and item.user_price:
+                    if float(item.user_price) > float(item.item_price):  # User-defined monitor price items
+                        user = self.session.query(User).filter_by(column_id=item.user_id)
+                        monitor_items.append([user[0].email, item.item_name, item.item_price,
+                                            item.user_price, item.item_id, item.column_id])
         return monitor_items, alert_items
 
     def check_cate_item_need_to_remind(self):
@@ -126,6 +127,11 @@ class Sql(object):
     def update_item_min_price(self, column_id, lowest_price):
         update_item = self.session.query(Monitor).get(column_id)
         update_item.lowest_price = lowest_price
+        self.session.commit()
+
+    def update_item_stock(self, column_id, stock):
+        update_item = self.session.query(Monitor).get(column_id)
+        update_item.stock = stock
         self.session.commit()
 
     def update_status(self, column_id):

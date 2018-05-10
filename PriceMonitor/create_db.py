@@ -7,6 +7,7 @@ from sqlalchemy import create_engine, Column, ForeignKey
 from sqlalchemy import Integer, String, DateTime, Numeric, Boolean, BIGINT
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
+import datetime
 Base = declarative_base()
 
 
@@ -31,11 +32,13 @@ class Monitor(Base):
     last_price = Column(String(32))
     plus_price = Column(String(32))
     subtitle = Column(String(128))
+    stock = Column(String(2))
+    last_stock = Column(String(2))
     user_id = Column(Integer, ForeignKey('user.column_id'))
     note = Column(String(128))
-    update_time = Column(DateTime)
-    add_time = Column(DateTime)
-    status = Column(Boolean, nullable=False)
+    update_time = Column(DateTime, default=datetime.datetime.now())
+    add_time = Column(DateTime, default=datetime.datetime.now())
+    status = Column(Boolean, nullable=False, default=1)
     user = relationship(User)
 
 
@@ -51,10 +54,12 @@ class SmartPhone_9987653655(Base):
     last_price = Column(String(32))
     plus_price = Column(String(32))
     subtitle = Column(String(128))
+    stock = Column(String(2))
+    last_stock = Column(String(2))
     note = Column(String(128))
-    update_time = Column(DateTime)
-    add_time = Column(DateTime)
-    status = Column(Boolean, nullable=False)
+    update_time = Column(DateTime, default=datetime.datetime.now())
+    add_time = Column(DateTime, default=datetime.datetime.now())
+    status = Column(Boolean, nullable=False, default=1)
 
 if __name__ == '__main__':
     # logging.basicConfig(level=logging.DEBUG)

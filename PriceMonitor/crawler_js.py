@@ -111,6 +111,42 @@ class Crawler(object):
             return False
 
     @staticmethod
+    def get_stock_jd(item_id, area, header, proxy=None):
+        url = 'https://c0.3.cn/stocks?type=batchstocks&skuIds=' + item_id + '&area=' + area
+        logging.debug('Ready to crawl JD stock URL：%s', url)
+        try:
+            if proxy:  # Using proxy
+                proxies = proxy
+                r = requests.get(url, headers=header, proxies=proxies, timeout=5)
+            else:  # Not using proxy
+                logging.info('Not using proxy to crawl stock')
+                r = requests.get(url, headers=header, timeout=5)
+            # can not use status code because wrong id also get 200
+            logging.info('aaaaaaa: %s', r.status_code)
+            if r.status_code != '200':  # Avoid invalid item id
+                js_fake = '-1'
+                return js_fake
+            try:
+                stock_js = json.loads(str(r.text))
+            except json.decoder.JSONDecodeError as e:
+                logging.info('Captcha error: %s', e)
+                return False
+            logging.info('Item: %s ,stock JS: %s', item_id, stock_js)
+            return stock_js[item_id]['StockState']
+        except requests.exceptions.ProxyError as e:
+            logging.info('Proxy error: %s', e)
+            return False
+        except requests.exceptions.ConnectionError as e:
+            logging.info('Https error: %s', e)
+            return False
+        except requests.exceptions.ReadTimeout as e:
+            logging.info('Timeout error: %s', e)
+            return False
+        except requests.exceptions.ChunkedEncodingError as e:
+            logging.info('ChunkedEncodingError error: %s', e)
+            return False
+
+    @staticmethod
     def get_name_jd(item_id, header, proxy=None):
         url = 'https://item.jd.com/' + item_id + '.html'
         logging.debug('Ready to crawl JD name URL：%s', url)
@@ -124,7 +160,7 @@ class Crawler(object):
             selector = etree.HTML(r.text)
             name = selector.xpath("//*[@class='sku-name']/text()")  # list
             try:  # normal
-                name_true = name[0].strip()
+                name_true = ' '.join(name).strip()
                 if not len(name_true):  # jd chaoshi
                     logging.info('Change method to catch name: jd chaoshi')
                     name_true = name[1].strip()
@@ -133,7 +169,7 @@ class Crawler(object):
                 logging.info('Change method to catch name: jd jingxuan')
                 try:  # jd jingxuan
                     name = selector.xpath("//*[@id='name']/h1/text()")
-                    name_true = name[0].strip()
+                    name_true = ' '.join(name).strip()
                 except IndexError as e:
                     logging.warning(e, name)
                     logging.warning('Catch name error')
