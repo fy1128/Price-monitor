@@ -8,6 +8,7 @@ from selenium.common.exceptions import NoSuchElementException, TimeoutException,
 from selenium.webdriver.chrome.options import Options
 import time
 import json
+import os
 
 
 class Crawler(object):
@@ -16,6 +17,7 @@ class Crawler(object):
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         chrome_options.add_argument('--disable-gpu')
+        chrome_options.add_argument('--no-sandbox')  # required when running as root user. otherwise you would get no sandbox 
         prefs = {"profile.managed_default_content_settings.images": 2}
         chrome_options.add_experimental_option("prefs", prefs)
         if proxy:
@@ -23,6 +25,7 @@ class Crawler(object):
             chrome_options.add_argument('--proxy-server=%s' % proxy_address)
             logging.info('Chrome using proxy: %s', proxy['https'])
         self.chrome = webdriver.Chrome(chrome_options=chrome_options)
+        #self.chrome = webdriver.Chrome(chrome_options=chrome_options, service_args=['--verbose'])
         # wait 3 seconds for start session (may delete)
         self.chrome.implicitly_wait(5)
         # set timeout like requests.get()
