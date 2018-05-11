@@ -90,13 +90,13 @@ class Entrance(object):
                     break
         else:
             # Using local ip
-            name = cr.get_name_jd(item_id, pr.get_ua())
+            name = cr.get_name_jd(item_id)
             sq.update_item_name(column_id, name)
-            price = cr.get_price_jd(item_id, pr.get_ua())
+            price = cr.get_price_jd(item_id)
             sq.update_item_price(column_id, price)
-            stock = cr.get_stock_jd(item_id, AREA, pr.get_ua())
+            stock = cr.get_stock_jd(item_id, AREA)
             sq.update_item_stock(column_id, stock)
-            huihui_info = cr.get_info_huihui(item_id, pr.get_ua())
+            huihui_info = cr.get_info_huihui(item_id)
             if huihui_info:  # skip this if not crawled
                 sq.update_item_max_price(column_id, huihui_info[0])
                 sq.update_item_min_price(column_id, huihui_info[1])

@@ -34,7 +34,7 @@ class Sql(object):
         alert_items = []
         items = self.session.query(Monitor).all()
         for item in items:
-            if item.stock != 34:
+            if item.ext is not None and 'stock' in item.ext and item.ext['stock'] != 34:
                 if item.discount and float(item.discount) <= DISCOUNT_LIMIT:
                     user = self.session.query(User).filter_by(column_id=item.user_id)
                     alert_items.append([user[0].email, item.item_name, item.item_price,
