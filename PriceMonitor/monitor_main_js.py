@@ -7,7 +7,7 @@ from proxy import Proxy
 from crawler_js import Crawler
 from conn_sql import Sql
 from mail import Mail
-from CONFIG import ITEM_CRAWL_TIME, UPDATE_TIME, Email_TIME, PROXY_CRAWL, THREAD_NUM, AREA
+from CONFIG import ITEM_CRAWL_TIME, UPDATE_TIME, Email_TIME, PROXY_CRAWL, THREAD_NUM
 import logging
 import logging.config
 import time
@@ -21,13 +21,13 @@ class Entrance(object):
     proxy_info_zhima = ()
     proxy_info_zhima = ()
 
-    def _item_info_update(self, items):
-        column_id = items[0]
-        item_id = items[1]
-        item_id = str(item_id)
+    def _item_info_update(self, item):
+        column_id = item.column_id
+        item_id = str(item.item_id)
+        item_area = str(item.area)
         sq = Sql()
         pr = Proxy()
-        cr = Crawler()
+        cr = Crawler(item_id, item_area)
         if PROXY_CRAWL == 1:
             # Using free proxy pool
             while True:
@@ -37,11 +37,11 @@ class Entrance(object):
                     sq.update_item_name(column_id, name)
                     while True:
                         proxy = pr.get_proxy(1)  # tuple: header, proxy
-                        price = cr.get_price_jd(item_id, proxy[0], proxy[1])
+                        price = cr.get_price_jd(item_id, item_area, proxy[0], proxy[1])
                         if price:
                             sq.update_item_price(column_id, price)
 
-                            stock = cr.get_stock_jd(item_id, AREA, pr.get_ua(), proxy[0], proxy[1])
+                            stock = cr.get_stock_jd(item_id, item_area, pr.get_ua(), proxy[0], proxy[1])
                             if stock:
                                 sq.update_item_stock(column_id, stock)
 
@@ -57,7 +57,7 @@ class Entrance(object):
             while True:
                 if not self.proxy_info_zhima:
                     self.proxy_info_zhima = pr.get_proxy_zhima()
-                print('Name proxy:', self.proxy_info_zhima, items)
+                print('Name proxy:', self.proxy_info_zhima, item)
                 name = cr.get_name_jd(item_id, self.proxy_info_zhima[0], self.proxy_info_zhima[1])
                 if not name:
                     self.proxy_info_zhima = ()
@@ -70,14 +70,14 @@ class Entrance(object):
                         if not self.proxy_info_zhima:
                             self.proxy_info_zhima = pr.get_proxy_zhima()
                         print('Price proxy:', self.proxy_info_zhima, items)
-                        price = cr.get_price_jd(item_id, self.proxy_info_zhima[0], self.proxy_info_zhima[1])
+                        price = cr.get_price_jd(item_id, item_area, self.proxy_info_zhima[0], self.proxy_info_zhima[1])
                         if not price:
                             self.proxy_info_zhima = ()
                             time.sleep(20)
                             continue
                         else:
                             sq.update_item_price(column_id, price)
-                            stock = cr.get_stock_jd(item_id, AREA, pr.get_ua(), self.proxy_info_zhima[0], self.proxy_info_zhima[1])
+                            stock = cr.get_stock_jd(item_id, item_area, pr.get_ua(), self.proxy_info_zhima[0], self.proxy_info_zhima[1])
                             if stock:
                                 sq.update_item_stock(column_id, stock)
 
@@ -90,25 +90,30 @@ class Entrance(object):
                     break
         else:
             # Using local ip
-            name = cr.get_name_jd(item_id)
+            name = cr.get_name_jd()
             sq.update_item_name(column_id, name)
-            price = cr.get_price_jd(item_id)
-            sq.update_item_price(column_id, price)
-            stock = cr.get_stock_jd(item_id, AREA)
-            sq.update_item_stock(column_id, stock)
-            huihui_info = cr.get_info_huihui(item_id)
+            prices = cr.get_price_jd()
+            price = sq.update_item_price(column_id, prices)
+            
+            ext = {}
+            ext['stock'] = cr.get_stock_jd()
+            ext['coupon'] = cr.get_coupon_jd()
+            ext['promo'] = cr.get_promo_jd()
+            sq.bulk_update_item_ext(column_id, ext)
+
+            huihui_info = cr.get_info_huihui()
             if huihui_info:  # skip this if not crawled
                 sq.update_item_max_price(column_id, huihui_info[0])
                 sq.update_item_min_price(column_id, huihui_info[1])
 
-            return name, price, stock
+            return name, price, ext
 
     @staticmethod
     def _check_item():
         sq = Sql()
         updated_time = UPDATE_TIME
         items = sq.read_all_not_updated_item(updated_time)
-        logging.warning('This loop: %s', items)
+        logging.warning('This loop: %s', [item.item_id for item in items])
         return items
 
     @staticmethod

@@ -26,7 +26,7 @@ class Sql(object):
             time_delta = (time_now - item.update_time).days * 86400 + (time_now - item.update_time).seconds
             logging.info('%s\'s time delta: %s', item.item_id, time_delta)
             if time_delta >= update_time:
-                need_item.append((item.column_id, item.item_id))
+                need_item.append(item)
         return need_item
 
     def check_item_need_to_remind(self):
@@ -99,7 +99,9 @@ class Sql(object):
         update_item.item_name = item_name
         self.session.commit()
 
-    def update_item_price(self, column_id, item_price):
+    def update_item_price(self, column_id, item_prices):
+        p = min(item_prices.items(), key=lambda x: x[1])[0]
+        item_price = float(item_prices[p])
         time_now = datetime.datetime.now()
         update_item = self.session.query(Monitor).get(column_id)
         if update_item.item_price and update_item.item_price != item_price:  # if new price
@@ -107,7 +109,10 @@ class Sql(object):
             update_item.discount = round(float(item_price) / float(update_item.last_price), 2)  # round(,2) set to 0.01
         update_item.item_price = item_price
         update_item.update_time = time_now
+        update_item.ext = self.field_ext_init(update_item)
+        update_item.ext['prices'] = item_prices
         self.session.commit()
+        return item_price
 
     def update_item_subtitle(self, column_id, subtitle):
         update_item = self.session.query(Monitor).get(column_id)
@@ -129,9 +134,15 @@ class Sql(object):
         update_item.lowest_price = lowest_price
         self.session.commit()
 
-    def update_item_stock(self, column_id, stock):
+    def bulk_update_item_ext(self, column_id, data = {}):
+        print(data)
+        for name in data:
+            self.update_item_ext(column_id, name, data[name])
+
+    def update_item_ext(self, column_id, name, value):
         update_item = self.session.query(Monitor).get(column_id)
-        update_item.stock = stock
+        update_item.ext = self.field_ext_init(update_item)
+        update_item.ext[name] = value
         self.session.commit()
 
     def update_status(self, column_id):
@@ -139,6 +150,9 @@ class Sql(object):
         update_item.status = 0
         self.session.commit()
 
+    def field_ext_init(self, update_item):
+        update_item.ext = update_item.ext if update_item.ext is not None else {}
+        return update_item.ext
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)

@@ -57,6 +57,7 @@ class Monitor(Base):
     last_price = Column(String(32))
     plus_price = Column(String(32))
     subtitle = Column(String(128))
+    area = Column(String(32))
     ext = Column(Json, default=lambda: {})
     user_id = Column(Integer, ForeignKey('user.column_id'))
     note = Column(String(128))
@@ -78,6 +79,7 @@ class SmartPhone_9987653655(Base):
     last_price = Column(String(32))
     plus_price = Column(String(32))
     subtitle = Column(String(128))
+    area = Column(String(32), default="1_72_2799_0") # beijing
     ext = Column(Json, default=lambda: {})
     note = Column(String(128))
     update_time = Column(DateTime, default=datetime.datetime.now())
