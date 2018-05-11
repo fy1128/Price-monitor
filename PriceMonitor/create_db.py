@@ -4,12 +4,37 @@
 from gevent import monkey  # IMPORT: must import gevent at first
 monkey.patch_all()
 from sqlalchemy import create_engine, Column, ForeignKey
-from sqlalchemy import Integer, String, DateTime, Numeric, Boolean, BIGINT
+from sqlalchemy import TypeDecorator, Integer, String, DateTime, Numeric, Boolean, BIGINT
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import relationship
 import datetime
+import json
 Base = declarative_base()
 
+class JSONEncodedDict(TypeDecorator):
+    @property
+    def python_type(self):
+        return object
+
+    impl = String
+
+    def process_bind_param(self, value, dialect):
+        if value is not None:
+            value = json.dumps(value)
+
+        return value
+
+    def process_literal_param(self, value, dialect):
+        return value
+
+    def process_result_value(self, value, dialect):
+        try:
+            return json.loads(value)
+        except (ValueError, TypeError):
+            return None
+
+Json = MutableDict.as_mutable(JSONEncodedDict)
 
 class User(Base):
     __tablename__ = 'user'
@@ -32,8 +57,7 @@ class Monitor(Base):
     last_price = Column(String(32))
     plus_price = Column(String(32))
     subtitle = Column(String(128))
-    stock = Column(String(2))
-    last_stock = Column(String(2))
+    ext = Column(Json, default=lambda: {})
     user_id = Column(Integer, ForeignKey('user.column_id'))
     note = Column(String(128))
     update_time = Column(DateTime, default=datetime.datetime.now())
@@ -54,8 +78,7 @@ class SmartPhone_9987653655(Base):
     last_price = Column(String(32))
     plus_price = Column(String(32))
     subtitle = Column(String(128))
-    stock = Column(String(2))
-    last_stock = Column(String(2))
+    ext = Column(Json, default=lambda: {})
     note = Column(String(128))
     update_time = Column(DateTime, default=datetime.datetime.now())
     add_time = Column(DateTime, default=datetime.datetime.now())

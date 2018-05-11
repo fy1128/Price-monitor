@@ -8,3 +8,4 @@ THREAD_NUM = 1  # Crawler thread, 1 equals loop
 THREAD_SLEEP_TIME = 5  # Sleep time for using LOCAL ip
 PROXY_POOL_IP = "115.159.190.214"  # Your redis server ip
 DISCOUNT_LIMIT = 0.8  # Set alert mail discount
+AREA = "19_1684_19467_0"  # Stock area

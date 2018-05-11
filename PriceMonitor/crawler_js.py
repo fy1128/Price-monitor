@@ -122,9 +122,8 @@ class Crawler(object):
                 logging.info('Not using proxy to crawl stock')
                 r = requests.get(url, headers=header, timeout=5)
             # can not use status code because wrong id also get 200
-            logging.info('aaaaaaa: %s', r.status_code)
-            if r.status_code != '200':  # Avoid invalid item id
-                js_fake = '-1'
+            if r.status_code != 200:  # Avoid invalid item id
+                js_fake = -1
                 return js_fake
             try:
                 stock_js = json.loads(str(r.text))
