@@ -117,11 +117,12 @@ class Entrance(object):
         return items
 
     @staticmethod
-    def _send_email():
+    def _send_email(prev_items):
         # Send email in a loop, avoid sending simultaneously.
         sq = Sql()
         items = sq.check_item_need_to_remind()
         logging.warning('This loop sent email: %s', items)
+
         for item in items[0]:  # email, item_name, item_price, user_price, item_id, column_id
             item_url = 'https://item.jd.com/' + str(item[4]) + '.html'
             email_text = '您监控的物品：' + item[1] + '，现在价格为：' + item[2] + \
@@ -139,10 +140,10 @@ class Entrance(object):
 
     def run(self):
         while True:
-            items = self._check_item()  # tuple: column_id, item_id
+            items = self._check_item()  # create_db.Monitor object
             items_info = CRAWLER_POOL.map(self._item_info_update, items)  # return two values as a tuple
             logging.warning('This loop updated information: %s', items_info)
-            self._send_email()
+            self._send_email(items)
             time.sleep(ITEM_CRAWL_TIME)
 
 
