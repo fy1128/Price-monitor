@@ -92,21 +92,27 @@ class Entrance(object):
             # Using local ip
             name = cr.get_name_jd()
             sq.update_item_name(column_id, name)
+            item['item_name'] = name
+
             prices = cr.get_price_jd()
             price = sq.update_item_price(column_id, prices)
+            item['item_price'] = price
             
             ext = {}
             ext['stock'] = cr.get_stock_jd()
             ext['coupon'] = cr.get_coupon_jd()
             ext['promo'] = cr.get_promo_jd()
             sq.bulk_update_item_ext(column_id, ext)
+            item['ext'] = ext
 
             huihui_info = cr.get_info_huihui()
             if huihui_info:  # skip this if not crawled
                 sq.update_item_max_price(column_id, huihui_info[0])
                 sq.update_item_min_price(column_id, huihui_info[1])
+                item['highest_price'] = huihui_info[0]
+                item['lowest_price'] = huihui_info[1]
 
-            return name, price, ext
+            return item
 
     @staticmethod
     def _check_item():
@@ -117,11 +123,12 @@ class Entrance(object):
         return items
 
     @staticmethod
-    def _send_email():
+    def _send_email(prev_items):
         # Send email in a loop, avoid sending simultaneously.
         sq = Sql()
         items = sq.check_item_need_to_remind()
         logging.warning('This loop sent email: %s', items)
+
         for item in items[0]:  # email, item_name, item_price, user_price, item_id, column_id
             item_url = 'https://item.jd.com/' + str(item[4]) + '.html'
             email_text = '您监控的物品：' + item[1] + '，现在价格为：' + item[2] + \
@@ -139,10 +146,10 @@ class Entrance(object):
 
     def run(self):
         while True:
-            items = self._check_item()  # tuple: column_id, item_id
+            items = self._check_item()  # create_db.Monitor object
             items_info = CRAWLER_POOL.map(self._item_info_update, items)  # return two values as a tuple
             logging.warning('This loop updated information: %s', items_info)
-            self._send_email()
+            self._send_email(items, items_info)
             time.sleep(ITEM_CRAWL_TIME)
 
 

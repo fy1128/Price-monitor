@@ -66,7 +66,6 @@ class Crawler(object):
     def get_price_jd(self):
         price = None
         prices = self.get_prices_jd()
-        prices = prices if prices else {}
 
         if self.skuInfo:
             try:
@@ -85,20 +84,17 @@ class Crawler(object):
                 price = r.text
             except AttributeError as e:
                 logging.warning(e, 'Catch price failed with remote error')
-                prices['p'] = '-1'
                 return prices
 
                 # can not use status code because wrong id also get 200
             if price == 'skuids input error\n':  # Avoid invalid item id
-                prices['p'] = '-1'
                 return prices
             try:
                 price = price[2:-4]
                 price_js = json.loads(str(price))
                 price = price_js['p']
             except json.decoder.JSONDecodeError as e:
-                logging.warning('Captcha error: %s', e)
-                prices['p'] = '-1'
+                logging.warning('Captcha price error: %s', e)
                 return prices
             
         prices['p'] = price
@@ -115,7 +111,7 @@ class Crawler(object):
                 del price_urls['m']
                 logging.info('Got mobile price from sku info successfully, skipped.')
             except KeyError as e:
-                logging.info("Get mobile price from sku info failed, going to crawl in the original way.")
+                logging.info("Got mobile price from sku info failed, going to crawl in the original way.")
                 pass
 
         for k, v in price_urls.items():
@@ -126,12 +122,14 @@ class Crawler(object):
             except AttributeError as e:
                 logging.warning("Get price from「" + platform[k] + "」failed...")
                 continue
+                pass
 
         if len(data) > 0:
             logging.info('Prices %s', {platform[k]: v for k,v in data.items()})
-            return data
+        else:
+            logging.warning('Got prices failed')
         
-        return False
+        return data
 
         
     def get_stock_jd(self):
@@ -152,20 +150,20 @@ class Crawler(object):
             try:
                 # can not use status code because wrong id also get 200
                 if r.status_code != 200:  # Avoid invalid item id
-                    js_fake = -1
-                    return js_fake
+                    return False
+
             except AttributeError as e:
                 logging.warning(e, 'Catch stock failed with remote error')
-                return '-1'
+                return False
 
             try:
                 stock_js = json.loads(str(r.text))
                 stock = stock_js[self.item_id]['StockState']
             except json.decoder.JSONDecodeError as e:
-                logging.warning('Captcha error: %s', e)
+                logging.warning('Captcha stock error: %s', e)
                 return False
 
-        logging.info('Item: %s ,stock JS: %s', self.item_id, stock)
+        logging.info('Item: %s, stock JS: %s', self.item_id, stock)
         return stock
 
     def get_coupon_jd(self):
@@ -184,20 +182,19 @@ class Crawler(object):
             content = r.json()['coupon']
         except (AttributeError, KeyError) as e:
             logging.warning(e, 'Catch coupon failed with remote error')
-            return coupons
+            return False
 
         for coupon in content:
             coupons.append(str(coupon["discount"])+"满"+str(coupon["quota"])+coupon["name"])
 
-        logging.info('Item: %s ,coupon JS: %s', self.item_id, coupons)
+        logging.info('Item: %s, coupon JS: %s', self.item_id, coupons)
         return coupons
    
     def get_promo_jd(self):
-        promo = None
+        promo = []
         if self.skuInfo:
             try:
                 logging.debug('Ready to get promo from sku info!')
-                data = []
                 for item in self.skuInfo['promov2']:
                     if 'pis' not in item:
                         continue
@@ -206,20 +203,15 @@ class Crawler(object):
                         if '15' not in pi:
                             continue
                             
-                        data.append(pi['15'])
-
-                if len(data) > 0:
-                    promo = ', '.join(data)
+                        promo.append(pi['15'])
 
             except KeyError as e:
                 logging.warning('Get promo from sku info failed with error: %s', e)
-                pass
 
-        if promo is None:
-            promo = self._get_promo_jd('promo')
-            if promo is None:
-                logging.warning('Captcha promo failed!')
-                return False
+                promo = self._get_promo_jd('promo')
+                if not promo:
+                    logging.warning('Captcha promo error')
+                    return False
 
         logging.info('Item: %s ,promo JS: %s', self.item_id, promo)
         return promo
@@ -252,15 +244,12 @@ class Crawler(object):
                 return False
         
         if name == 'promo':
-            promos = []
+            result = []
             try:
                 tags = promotion_js['prom']['pickOneTag']
                 for item in tags:
                     if 'code' in tags and tags['code'] == '15':
-                        promos.append(tags['content'])
-
-                if len(result) > 0:
-                    result = ', '.join(promos)
+                        result.append(tags['content'])
 
             except KeyError as e:
                 logging.info(name + ': maybe empty: %s', e)
@@ -270,16 +259,16 @@ class Crawler(object):
         return result
 
     def get_name_jd(self):
-        name_true = None
+        name = None
         if self.skuInfo:
             try:
                 logging.debug('Ready to get name from sku info!')
-                name_true = self.skuInfo['skuName'].strip()
+                name = self.skuInfo['skuName'].strip()
             except KeyError as e:
                 logging.warning('Get name from sku info failed with error: %s', e)
                 pass
                 
-        if name_true is None:
+        if name is None:
             url = 'https://item.jd.com/' + self.item_id + '.html'
             logging.debug('Ready to crawl JD name URL：%s', url)
 
@@ -288,26 +277,26 @@ class Crawler(object):
             try:  # normal
                 selector = etree.HTML(r.text)
                 name = selector.xpath("//*[@class='sku-name']/text()")  # list
-                name_true = ' '.join(name).strip()
-                if not len(name_true):  # jd chaoshi
+                name = ' '.join(name).strip()
+                if not len(name):  # jd chaoshi
                     logging.warning('Change method to catch name: jd chaoshi')
-                    name_true = name[1].strip()
+                    name = name[1].strip()
             except AttributeError as e:
                 logging.warning(e, 'Catch name failed with remote error')
-                name_true = '本轮抓取该商品名称失败，请等待重试'
+                return False
             except IndexError as e:
                 logging.warning(e, name)
                 logging.warning('Change method to catch name: jd jingxuan')
                 try:  # jd jingxuan
                     name = selector.xpath("//*[@id='name']/h1/text()")
-                    name_true = ' '.join(name).strip()
+                    name = ' '.join(name).strip()
                 except IndexError as e:
                     logging.warning(e, name)
                     logging.warning('Catch name error')
-                    name_true = '本轮抓取该商品名称失败，请等待重试'
+                    return False
 
-        logging.info('Item: %s', name_true)
-        return name_true
+        logging.info('Item: %s, name: %s', self.item_id, name)
+        return name
 
     def load_html(self, url, desc='', cookies = {}, data=None):
         s = requests.session()

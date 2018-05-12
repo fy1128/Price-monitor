@@ -96,12 +96,18 @@ class Sql(object):
         self.session.commit()
 
     def update_item_name(self, column_id, item_name):
+        if not item_name:
+            return False
+
         update_item = self.session.query(Monitor).get(column_id)
         update_item.item_name = item_name
         self.session.commit()
 
     def update_item_price(self, column_id, item_prices):
-        p = min(item_prices.items(), key=lambda x: float(x[1]) if x[1] else math.pow(10, 8))[0]
+        if len(item_prices) = 0:
+            return False
+
+        p = min(item_prices.items(), key=lambda x: float(x[1]))[0]
         item_price = float(item_prices[p])
         time_now = datetime.datetime.now()
         update_item = self.session.query(Monitor).get(column_id)
@@ -116,21 +122,33 @@ class Sql(object):
         return item_price
 
     def update_item_subtitle(self, column_id, subtitle):
+        if not subtitle:
+            return False
+
         update_item = self.session.query(Monitor).get(column_id)
         update_item.subtitle = subtitle
         self.session.commit()
 
     def update_item_plus_price(self, column_id, plus_price):
+        if not plus_price:
+            return False
+
         update_item = self.session.query(Monitor).get(column_id)
         update_item.plus_price = plus_price
         self.session.commit()
 
     def update_item_max_price(self, column_id, highest_price):
+        if not highest_price:
+            return False
+
         update_item = self.session.query(Monitor).get(column_id)
         update_item.highest_price = highest_price
         self.session.commit()
 
     def update_item_min_price(self, column_id, lowest_price):
+        if not lowest_price:
+            return False
+
         update_item = self.session.query(Monitor).get(column_id)
         update_item.lowest_price = lowest_price
         self.session.commit()
@@ -140,6 +158,9 @@ class Sql(object):
             self.update_item_ext(column_id, name, data[name])
 
     def update_item_ext(self, column_id, name, value):
+        if not value:
+            return False
+
         update_item = self.session.query(Monitor).get(column_id)
         update_item.ext = self.field_ext_init(update_item)
         update_item.ext[name] = value
