@@ -128,7 +128,7 @@ class Crawler(object):
                 continue
 
         if len(data) > 0:
-            logging.info('Prices %s', data)
+            logging.info('Prices %s', {platform[k]: v for k,v in data.items()})
             return data
         
         return False
@@ -169,6 +169,7 @@ class Crawler(object):
         return stock
 
     def get_coupon_jd(self):
+        coupons = []
         """Use post method to query whether there is a coupon."""
         #Communication procedure seen on httptrace extension in Chrome.
         #headers = {"Connection": "keep-alive", "Content-Type": "application/x-www-form-urlencoded"}
@@ -180,13 +181,16 @@ class Crawler(object):
         try:
             #Escape the " for eval use.
             #content = json.dumps(json.loads(r.text)["coupon"]).replace("true", "\"true\"").replace("false", "\"false\"")
-            coupon = r.json()['coupon']
+            content = r.json()['coupon']
         except (AttributeError, KeyError) as e:
             logging.warning(e, 'Catch coupon failed with remote error')
-            coupon = {}
+            return coupons
 
-        logging.info('Item: %s ,coupon JS: %s', self.item_id, coupon)
-        return coupon
+        for coupon in content:
+            coupons.append(str(coupon["discount"])+"满"+str(coupon["quota"])+coupon["name"])
+
+        logging.info('Item: %s ,coupon JS: %s', self.item_id, coupons)
+        return coupons
    
     def get_promo_jd(self):
         promo = None
