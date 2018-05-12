@@ -7,6 +7,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from create_db import Base, User, Monitor, SmartPhone_9987653655
 import datetime
+import math
 from CONFIG import DISCOUNT_LIMIT
 
 
@@ -100,7 +101,7 @@ class Sql(object):
         self.session.commit()
 
     def update_item_price(self, column_id, item_prices):
-        p = min(item_prices.items(), key=lambda x: x[1])[0]
+        p = min(item_prices.items(), key=lambda x: float(x[1]) if x[1] else math.pow(10, 8))[0]
         item_price = float(item_prices[p])
         time_now = datetime.datetime.now()
         update_item = self.session.query(Monitor).get(column_id)
@@ -135,7 +136,6 @@ class Sql(object):
         self.session.commit()
 
     def bulk_update_item_ext(self, column_id, data = {}):
-        print(data)
         for name in data:
             self.update_item_ext(column_id, name, data[name])
 
