@@ -60,7 +60,7 @@ class Crawler(object):
                 logging.warning('Captcha subtitle failed!')
                 return False
 
-        logging.info('subtitle: %s, %s', subtitle)
+        logging.info('subtitle: %s', subtitle)
         return subtitle
 
     def get_price_jd(self):
