@@ -55,7 +55,7 @@ class Sql(object):
 
                 # do not continue if out of stock
                 stock = curr_item['ext']['stock']
-                if not stock or stock == 33:
+                if not stock or stock == 34:
                     continue
 
                 user = self.session.query(User).filter_by(column_id=item['user_id'])
