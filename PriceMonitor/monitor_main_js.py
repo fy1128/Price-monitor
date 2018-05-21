@@ -22,9 +22,9 @@ class Entrance(object):
     proxy_info_zhima = ()
 
     def _item_info_update(self, item):
-        column_id = item.column_id
-        item_id = str(item.item_id)
-        item_area = str(item.area)
+        column_id = item['column_id']
+        item_id = str(item['item_id'])
+        item_area = str(item['area'])
         sq = Sql()
         pr = Proxy()
         cr = Crawler(item_id, item_area)
@@ -90,50 +90,76 @@ class Entrance(object):
                     break
         else:
             # Using local ip
+            #curr_item = item.__dict__
+            # do a copy to avoid old item being changed. some ways
+            # new_list = old_list[:]; new_list = list(ld_list); import copy, new_list = copy.deepcopy(old_list)
+            curr_item = dict(item)
+            
+            #check whether field was updated.
+            curr_item['status'] = 1
+
             name = cr.get_name_jd()
-            sq.update_item_name(column_id, name)
-            item['item_name'] = name
+            status = sq.update_item_name(column_id, name)
+            curr_item['item_name'] = name
 
             prices = cr.get_price_jd()
-            price = sq.update_item_price(column_id, prices)
-            item['item_price'] = price
+            # tunple current price, discount
+            status = price = sq.update_item_price(column_id, prices)
+            if not price:
+                curr_item['item_price'] = curr_item['discount'] = False
+            else:
+                curr_item['item_price'] = price[0]
+                curr_item['discount'] = price[1]
+
+            subtitle = cr.get_subtitle_jd()
+            status = sq.update_item_subtitle(column_id, subtitle)
+            curr_item['subtitle'] = subtitle
             
             ext = {}
             ext['stock'] = cr.get_stock_jd()
             ext['coupon'] = cr.get_coupon_jd()
             ext['promo'] = cr.get_promo_jd()
             sq.bulk_update_item_ext(column_id, ext)
-            item['ext'] = ext
+            curr_item['ext'] = ext
 
             huihui_info = cr.get_info_huihui()
             if huihui_info:  # skip this if not crawled
                 sq.update_item_max_price(column_id, huihui_info[0])
                 sq.update_item_min_price(column_id, huihui_info[1])
-                item['highest_price'] = huihui_info[0]
-                item['lowest_price'] = huihui_info[1]
+                status = curr_item['highest_price'] = huihui_info[0]
+                status = curr_item['lowest_price'] = huihui_info[1]
 
-            return item
+            if not status:
+                curr_item['status'] = 0
+
+            return curr_item
 
     @staticmethod
     def _check_item():
         sq = Sql()
         updated_time = UPDATE_TIME
         items = sq.read_all_not_updated_item(updated_time)
-        logging.warning('This loop: %s', [item.item_id for item in items])
+        logging.warning('This loop: %s', [item['item_id'] for item in items])
         return items
 
     @staticmethod
-    def _send_email(prev_items):
+    def _send_email(prev_items = None, curr_items = None):
         # Send email in a loop, avoid sending simultaneously.
         sq = Sql()
-        items = sq.check_item_need_to_remind()
+        items = sq.check_item_need_to_remind(prev_items, curr_items)
         logging.warning('This loop sent email: %s', items)
 
         for item in items[0]:  # email, item_name, item_price, user_price, item_id, column_id
-            item_url = 'https://item.jd.com/' + str(item[4]) + '.html'
-            email_text = '您监控的物品：' + item[1] + '，现在价格为：' + item[2] + \
-                         '，您设定的价格为：' + item[3] + '，赶紧购买吧！' + item_url
-            email_subject = '您监控的物品降价了！'
+            item_url = 'https://item.jd.com/' + str(item[6]) + '.html'
+            email_text = '物品：' + item[1] + '，\n' + \
+                         '上次监控价格为：' + str(item[3]) + '，\n' + \
+                         '现在价格为：' + str(item[4]) + '，\n' + \
+                         '您设定的价格为：' + str(item[5]) + '，赶紧购买吧！\n' + \
+                         '子标题：' + item[2] + '，\n' + \
+                         '历史最高价参考：' + str(item[8]) + '，\n' + \
+                         '历史最低价参考：' + str(item[9]) + '，\n' + \
+                         item_url
+            email_subject = ', '.join(item[10]) + '！您监控的物品有变更！'
             try:
                 send_email = Mail(email_text, 'admin', 'user', email_subject, item[0])
                 send_email.send()
@@ -141,12 +167,34 @@ class Entrance(object):
             except:
                 logging.critical('Sent email failure, skip in this loop: %s', item[0])
                 continue
-            sq.update_status(item[5])
+            sq.update_status(item[7])
             logging.warning('Sent email SUCCESS: %s', item[0])
+            
+        for item in items[1]:  # email, item_name, item_price, discount, item_id, column_id, last_price
+            item_url = 'https://item.jd.com/' + str(item[6]) + '.html'
+            email_text = '物品：' + item[1] + '，\n' + \
+                         '上次监控价格为：' + str(item[3]) + '，\n' + \
+                         '现在价格为：' + str(item[4]) + '，\n' + \
+                         '降价幅度为：' + str(100 * float(item[3])) + '折，赶紧购买吧！\n' + \
+                         '子标题：' + item[2] + '，\n' + \
+                         '历史最高价参考：' + str(item[8]) + '，\n' + \
+                         '历史最低价参考：' + str(item[9]) + '，\n' + \
+                         item_url
+            email_subject = '您监控类别中的物品大幅度降价了！'
+            try:
+                send_email = Mail(email_text, 'admin', 'user', email_subject, item[0])
+                send_email.send()
+                time.sleep(Email_TIME)
+            except:
+                logging.critical('Sent email failure, skip in this loop: %s', item[0])
+                continue
+
+            sq.update_status(item[7])
+            logging.warning('Sent alert email SUCCESS: %s', item[0])
 
     def run(self):
         while True:
-            items = self._check_item()  # create_db.Monitor object
+            items = self._check_item()  # dict of create_db.Monitor object
             items_info = CRAWLER_POOL.map(self._item_info_update, items)  # return two values as a tuple
             logging.warning('This loop updated information: %s', items_info)
             self._send_email(items, items_info)

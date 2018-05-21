@@ -8,7 +8,7 @@ from sqlalchemy.orm import sessionmaker
 from create_db import Base, User, Monitor, SmartPhone_9987653655
 import datetime
 import math
-from CONFIG import DISCOUNT_LIMIT
+from CONFIG import DISCOUNT_LIMIT, ALERT_EXT
 
 
 class Sql(object):
@@ -24,27 +24,87 @@ class Sql(object):
         need_item = []
         all_items = self.session.query(Monitor).all()
         for item in all_items:
+            if item.enable == 0:
+                continue
+
             time_delta = (time_now - item.update_time).days * 86400 + (time_now - item.update_time).seconds
             logging.info('%s\'s time delta: %s', item.item_id, time_delta)
             if time_delta >= update_time:
+                item = dict(item.__dict__)
+                item.pop('_sa_instance_state', None)
                 need_item.append(item)
         return need_item
 
-    def check_item_need_to_remind(self):
+    def check_item_need_to_remind(self, prev_items = None, curr_items = None):
         monitor_items = []
         alert_items = []
-        items = self.session.query(Monitor).all()
-        for item in items:
-            if item.ext is not None and 'stock' in item.ext and item.ext['stock'] != 34:
-                if item.discount and float(item.discount) <= DISCOUNT_LIMIT:
-                    user = self.session.query(User).filter_by(column_id=item.user_id)
-                    alert_items.append([user[0].email, item.item_name, item.item_price,
-                                        item.discount, item.item_id, item.column_id, item.last_price])
-                if item.status == 1 and item.user_price:
-                    if float(item.user_price) > float(item.item_price):  # User-defined monitor price items
-                        user = self.session.query(User).filter_by(column_id=item.user_id)
-                        monitor_items.append([user[0].email, item.item_name, item.item_price,
-                                            item.user_price, item.item_id, item.column_id])
+        if curr_items is None:
+            items = self.session.query(Monitor).all()
+        else:
+            items = curr_items
+
+        notice_items = {}
+        if prev_items is not None:
+            alert_ext = ALERT_EXT.lower().split(',')
+            curr_items = {item['item_id']: item if isinstance(item, dict) else item.__dict__ for item in items}
+            for item in prev_items:
+                item_id = item['item_id']
+                curr_item = curr_items[item_id]
+                if curr_item['status'] == 0:
+                    continue
+
+                # do not continue if out of stock
+                stock = curr_item['ext']['stock']
+                if not stock or stock == 33:
+                    continue
+
+                user = self.session.query(User).filter_by(column_id=item['user_id'])
+                #monitor_items[item_id] = []
+                
+                # fields of item to be return
+                base_item = [user[0].email,
+                            curr_item['item_name'] if curr_item['item_name'] is not False else item['item_name'],
+                            curr_item['subtitle'] if curr_item['subtitle'] is not False else '抓取子标题失败',
+                            item['item_price'], curr_item['item_price'], 
+                            curr_item['user_price'], curr_item['item_id'], curr_item['column_id'],
+                            curr_item['highest_price'] if curr_item['highest_price'] is not None else '',
+                            curr_item['lowest_price'] if curr_item['lowest_price'] is not None else '',
+                            []]
+                print(curr_item['subtitle'])
+                print(base_item)
+                if item['discount'] and float(item['discount']) <= DISCOUNT_LIMIT:
+                    alert_items.append([user[0].email, curr_item['item_name'], curr_item['subtitle'], item['item_price'], curr_item['item_price'],
+                                        curr_item['discount'], curr_item['item_id'], curr_item['column_id'], curr_item['highest_price'], curr_item['lowest_price']])
+
+                if item['user_price']:
+                    if curr_item['item_price'] and float(curr_item['item_price']) != float(item['item_price']) and float(item['user_price']) > float(curr_item['item_price']):  # User-defined monitor price items
+                        base_item[10].append('降')
+
+                if 'name' in alert_ext:
+                    if curr_item['item_name'] and item['item_name'] != curr_item['item_name']:
+                        base_item[10].append('变')
+
+                if 'stock' in alert_ext:
+                    prev_stock = item['ext']['stock'] if 'stock' in item['ext'] else None
+                    if prev_stock != stock:
+                        base_item[10].append('货')
+
+                if 'coupon' in alert_ext:
+                    coupon = curr_item['ext']['coupon']
+                    prev_coupon = item['ext']['coupon'] if 'coupon' in item['ext'] else None
+                    if coupon and len(coupon) > 0 and prev_coupon != coupon:
+                        base_item[10].append('券')
+                
+                if 'promo' in alert_ext:
+                    promo = curr_item['ext']['promo']
+                    prev_promo = item['ext']['promo'] if 'promo' in item['ext'] else None
+                    if promo and len(promo) > 0 and prev_promo != promo:
+                        base_item[10].append('促')
+
+                if len(base_item[10]) > 0:
+                    monitor_items.append(base_item)
+
+        print(monitor_items)
         return monitor_items, alert_items
 
     def check_cate_item_need_to_remind(self):
@@ -104,7 +164,7 @@ class Sql(object):
         self.session.commit()
 
     def update_item_price(self, column_id, item_prices):
-        if len(item_prices) = 0:
+        if len(item_prices) == 0:
             return False
 
         p = min(item_prices.items(), key=lambda x: float(x[1]))[0]
@@ -119,7 +179,7 @@ class Sql(object):
         update_item.ext = self.field_ext_init(update_item)
         update_item.ext['prices'] = item_prices
         self.session.commit()
-        return item_price
+        return item_price, update_item.discount
 
     def update_item_subtitle(self, column_id, subtitle):
         if not subtitle:
@@ -164,6 +224,7 @@ class Sql(object):
         update_item = self.session.query(Monitor).get(column_id)
         update_item.ext = self.field_ext_init(update_item)
         update_item.ext[name] = value
+        update_item.update_time = datetime.datetime.now()
         self.session.commit()
 
     def update_status(self, column_id):
