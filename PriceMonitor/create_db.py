@@ -64,6 +64,7 @@ class Monitor(Base):
     update_time = Column(DateTime, default=datetime.datetime.now())
     add_time = Column(DateTime, default=datetime.datetime.now())
     status = Column(Boolean, nullable=False, default=1)
+    enable = Column(Boolean, nullable=False, default=1)
     user = relationship(User)
 
 
@@ -85,6 +86,7 @@ class SmartPhone_9987653655(Base):
     update_time = Column(DateTime, default=datetime.datetime.now())
     add_time = Column(DateTime, default=datetime.datetime.now())
     status = Column(Boolean, nullable=False, default=1)
+    enable = Column(Boolean, nullable=False, default=1)
 
 if __name__ == '__main__':
     # logging.basicConfig(level=logging.DEBUG)
