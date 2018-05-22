@@ -103,7 +103,7 @@ class Sql(object):
                     monitor_items.append(base_item)
 
         # append the previous items failed to send mail
-        items_need_mail = self.session.query(Monitor).filter_by(status=1).all()
+        items_need_mail = self.session.query(Monitor).filter_by(status=1).limit(10)
         for item in items_need_mail:
             user = self.session.query(User).filter_by(column_id=item.user_id)
             monitor_items.append([user[0].email,
