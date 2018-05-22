@@ -22,10 +22,8 @@ class Sql(object):
     def read_all_not_updated_item(self, update_time):
         time_now = datetime.datetime.now()
         need_item = []
-        all_items = self.session.query(Monitor).all()
+        all_items = self.session.query(Monitor).filter_by(enable=1).all()
         for item in all_items:
-            if item.enable == 0:
-                continue
 
             time_delta = (time_now - item.update_time).days * 86400 + (time_now - item.update_time).seconds
             logging.info('%s\'s time delta: %s', item.item_id, time_delta)
@@ -49,8 +47,9 @@ class Sql(object):
             curr_items = {item['item_id']: item if isinstance(item, dict) else item.__dict__ for item in items}
             for item in prev_items:
                 item_id = item['item_id']
+                item['ext'] = item['ext'] if isinstance(item['ext'], dict) else {}
                 curr_item = curr_items[item_id]
-                if curr_item['status'] == 0:
+                if curr_item['updated'] == 0:
                     continue
 
                 # do not continue if out of stock
@@ -70,14 +69,13 @@ class Sql(object):
                             curr_item['highest_price'] if curr_item['highest_price'] is not None else '',
                             curr_item['lowest_price'] if curr_item['lowest_price'] is not None else '',
                             []]
-                print(curr_item['subtitle'])
-                print(base_item)
+                
                 if item['discount'] and float(item['discount']) <= DISCOUNT_LIMIT:
                     alert_items.append([user[0].email, curr_item['item_name'], curr_item['subtitle'], item['item_price'], curr_item['item_price'],
                                         curr_item['discount'], curr_item['item_id'], curr_item['column_id'], curr_item['highest_price'], curr_item['lowest_price']])
 
                 if item['user_price']:
-                    if curr_item['item_price'] and float(curr_item['item_price']) != float(item['item_price']) and float(item['user_price']) > float(curr_item['item_price']):  # User-defined monitor price items
+                    if curr_item['item_price'] and item['item_price'] is not None and float(curr_item['item_price']) != float(item['item_price']) and float(item['user_price']) > float(curr_item['item_price']):  # User-defined monitor price items
                         base_item[10].append('降')
 
                 if 'name' in alert_ext:
@@ -104,7 +102,19 @@ class Sql(object):
                 if len(base_item[10]) > 0:
                     monitor_items.append(base_item)
 
-        print(monitor_items)
+        # append the previous items failed to send mail
+        items_need_mail = self.session.query(Monitor).filter_by(status=1).all()
+        for item in items_need_mail:
+            user = self.session.query(User).filter_by(column_id=item.user_id)
+            monitor_items.append([user[0].email,
+                                item.item_name if item.item_name is not None else '',
+                                item.subtitle if item.subtitle is not None else '',
+                                item.last_price, item.item_price, 
+                                item.user_price, item.item_id, item.column_id,
+                                item.highest_price if item.highest_price is not None else '',
+                                item.lowest_price if item.lowest_price is not None else '',
+                                []])
+            
         return monitor_items, alert_items
 
     def check_cate_item_need_to_remind(self):
@@ -173,7 +183,11 @@ class Sql(object):
         update_item = self.session.query(Monitor).get(column_id)
         if update_item.item_price and update_item.item_price != item_price:  # if new price
             update_item.last_price = update_item.item_price
-            update_item.discount = round(float(item_price) / float(update_item.last_price), 2)  # round(,2) set to 0.01
+            if float(update_item.last_price) > 0:
+                update_item.discount = round(float(item_price) / float(update_item.last_price), 2)  # round(,2) set to 0.01
+            else:
+                update_item.discount = 0.01
+
         update_item.item_price = item_price
         update_item.update_time = time_now
         update_item.ext = self.field_ext_init(update_item)
@@ -227,9 +241,15 @@ class Sql(object):
         update_item.update_time = datetime.datetime.now()
         self.session.commit()
 
-    def update_status(self, column_id):
-        update_item = self.session.query(Monitor).get(column_id)
-        update_item.status = 0
+    def update_status(self, column_id, status = 0):
+        if isinstance(column_id, list):
+            for update_item in self.session.query(Monitor).filter(Monitor.column_id.in_(tuple(column_id))):
+                update_item.status = status
+
+        else:
+            update_item = self.session.query(Monitor).get(column_id)
+            update_item.status = status
+
         self.session.commit()
 
     def field_ext_init(self, update_item):
