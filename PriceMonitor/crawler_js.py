@@ -8,6 +8,8 @@ from proxy import Proxy
 import logging
 import time
 import random
+import operator
+import re
 
 class Crawler(object):
     # TODO: Move get_url to independent function
@@ -49,7 +51,7 @@ class Crawler(object):
         subtitle = None
         if self.skuInfo:
             try:
-                subtitle = self.skuInfo['AdvertCount']['ad']
+                subtitle = re.sub(r'<[^>]*?>', '', self.skuInfo['AdvertCount']['ad'])
             except KeyError as e:
                 logging.warning('Get subtitle from sku info failed with error: %s', e)
                 pass
@@ -184,6 +186,7 @@ class Crawler(object):
             logging.warning(e, 'Catch coupon failed with remote error')
             return False
 
+        content = sorted(content, key=operator.itemgetter('encryptedKey'))
         for coupon in content:
             coupons.append(str(coupon["discount"])+"满"+str(coupon["quota"])+coupon["name"])
 
@@ -199,11 +202,12 @@ class Crawler(object):
                     if 'pis' not in item:
                         continue
 
-                    for pi in item['pis']:
+                    pis = sorted(item['pis'], key=operator.itemgetter('pid'))
+                    for pi in pis:
                         if '15' not in pi:
                             continue
                             
-                        promo.append(pi['15'])
+                        promo.append(re.sub(r'<[^>]*?>', '', pi['15']))
 
             except KeyError as e:
                 logging.warning('Get promo from sku info failed with error: %s', e)
@@ -238,7 +242,7 @@ class Crawler(object):
 
         if name == 'subtitle':
             try:
-                result = promotion_js['ads'][0]['ad']
+                result = re.sub(r'<[^>]*?>', '', promotion_js['ads'][0]['ad'])
             except KeyError as e:
                 logging.info(name + ': maybe empty: %s', e)
                 return False
@@ -249,7 +253,7 @@ class Crawler(object):
                 tags = promotion_js['prom']['pickOneTag']
                 for item in tags:
                     if 'code' in tags and tags['code'] == '15':
-                        result.append(tags['content'])
+                        result.append(re.sub(r'<[^>]*?>', '', tags['content']))
 
             except KeyError as e:
                 logging.info(name + ': maybe empty: %s', e)
