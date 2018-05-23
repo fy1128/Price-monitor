@@ -182,7 +182,7 @@ class Entrance(object):
             if 'alert' not in mail_map[item[0]]:
                 mail_map[item[0]]['alert'] = {'ids': [], 'msg': []}
 
-            mail_map[item[0]]['mon']['ids'].append(item[7])
+            mail_map[item[0]]['alert']['ids'].append(item[7])
             item_url = 'https://item.jd.com/' + str(item[6]) + '.html'
             email_text = '物品：' + item[1] + '，\n' + \
                          '现在价格为：' + str(item[4]) + '，\n' + \
