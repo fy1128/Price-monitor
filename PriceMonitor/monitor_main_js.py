@@ -12,6 +12,7 @@ import logging
 import logging.config
 import time
 from os import path  # Supervisor cannot find logger.conf
+import sys, random
 
 CRAWLER_POOL = Pool(THREAD_NUM)
 
@@ -229,8 +230,18 @@ class Entrance(object):
             items_info = CRAWLER_POOL.map(self._item_info_update, items)  # return two values as a tuple
             logging.warning('This loop updated information: %s', [{item['item_id']: item['item_name']} for item in items_info])
             self._send_email(items, items_info)
-            time.sleep(ITEM_CRAWL_TIME)
+            
+            # 
+            RAND_INT = random.randint(-5,5)
+            SLEEP_INTERVAL_RANDOM = int(ITEM_CRAWL_TIME + RAND_INT)
+            if SLEEP_INTERVAL_RANDOM < 1:
+                SLEEP_INTERVAL_RANDOM = 1
 
+            sys.stdout.write("\n")
+            for i in range(SLEEP_INTERVAL_RANDOM,0,-1):
+                sys.stdout.write("\r等待 " + str(i)+"秒 更新..."+"\r")
+                time.sleep(1)
+                sys.stdout.flush()
 
 if __name__ == '__main__':
 
