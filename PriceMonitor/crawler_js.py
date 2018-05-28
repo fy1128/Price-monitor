@@ -308,7 +308,7 @@ class Crawler(object):
             if data is not None: # get
                 if self.proxy_info:  # Using proxy
                     logging.info('Using proxy %s to crawl %s', self.proxy_info, desc)
-                    res = s.get(url, cookies = cookies, headers = self.header, proxies = {"http": http_proxy, "https": http_proxy}, timeout=6)
+                    res = s.get(url, cookies = cookies, headers = self.header, proxies = {"http": http_proxy, "https": http_proxy}, timeout=10)
                 else:  # Not using proxy
                     logging.info('Not using proxy to crawl %s', desc)
                     res = s.get(url, cookies = cookies, headers = self.header, timeout=6)
@@ -318,7 +318,7 @@ class Crawler(object):
             else: # post
                 if self.proxy_info:  # Using proxy
                     logging.info('Using proxy %s to crawl %s', self.proxy_info, desc)
-                    res = s.post(url, cookies = cookies, data = data, headers = self.header, proxies = {"http": http_proxy, "https": http_proxy}, timeout=6)
+                    res = s.post(url, cookies = cookies, data = data, headers = self.header, proxies = {"http": http_proxy, "https": http_proxy}, timeout=10)
                 else:  # Not using proxy
                     logging.info('Not using proxy to crawl %s', desc)
                     res = s.post(url, cookies = cookies, data = data, headers = self.header, timeout=6)
