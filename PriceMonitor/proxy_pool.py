@@ -3,6 +3,7 @@
 import random
 import requests
 import logging
+import time
 
 USER_AGENT_LIST = [
     "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.1 (KHTML, like Gecko) Chrome/22.0.1207.1 Safari/537.1",
@@ -43,26 +44,30 @@ class Proxy(object):
         retry_count = 5
         while retry_count > 0:
             try:
-                r = requests.get('https://item.m.jd.com/coupon/coupon.json?wareId=5089253', headers = header, proxies={"http": "http://{}".format(proxy)}) # Iphone X
+                http_proxy = "http://{}".format(proxy)
+                r = requests.get('https://item.m.jd.com/coupon/coupon.json?wareId=5089253', headers = header, proxies={"http": http_proxy, "https": http_proxy}, timeout=6) # Iphone X
                 # 使用代理访问
                 if 'coupon' not in r.json():
                     return False
                     
                 return True
-            except Exception:
+            except Exception as e:
+                print(e)
                 retry_count -= 1
 
         # 出错5次, 删除代理池中代理
-        delete_proxy(proxy)
+        logging.info('Proxy %s is invalid, deleting...', proxy)
+        Proxy.delete_proxy(proxy)
         return False
 
     def get_proxy(self):
         while True:
             proxy = requests.get("http://127.0.0.1:5010/get/").content
             if proxy != '':
+                proxy = proxy.decode()
                 if not self.check_jd(proxy):
-                        logging.warning('Validate proxy failure, retrying')
-                        continue
+                    logging.warning('Validate proxy failure, retrying')
+                    continue
                 logging.info('Validate SUCCESS，using proxy: %s', proxy)
                 return proxy
             else:
