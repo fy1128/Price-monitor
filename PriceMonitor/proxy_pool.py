@@ -41,7 +41,7 @@ class Proxy(object):
     def check_jd(proxy):
         logging.info('Validating name proxy: %s', proxy)
         header = Proxy.get_ua()
-        retry_count = 5
+        retry_count = 3
         while retry_count > 0:
             try:
                 http_proxy = "http://{}".format(proxy)
