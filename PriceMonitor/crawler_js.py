@@ -4,7 +4,7 @@ import requests
 import json
 from lxml import etree
 from CONFIG import PROXY_CRAWL
-from proxy import Proxy
+from proxy_pool import Proxy
 import logging
 import time
 import random
@@ -18,19 +18,16 @@ class Crawler(object):
     def __init__(self, item_id, area):
         self.item_id = item_id
         self.area = area
+        pr = Proxy()
+        self.header = pr.get_ua()
         if PROXY_CRAWL == 1:
             # Using free proxy pool
-            proxy_info = pr.get_proxy(0)  # tuple: header, proxy
-        elif PROXY_CRAWL == 2:
-            # Using zhima proxy
-            if not self.proxy_info_zhima:
-                self.proxy_info_zhima = pr.get_proxy_zhima()
-            print('Name proxy:', self.proxy_info_zhima, items)
+            self.proxy_info = pr.get_proxy()  # tuple: header, proxy
 
         else:
-            self.header = Proxy.get_ua()
-            self.proxy = None
-            self.skuInfo = self.get_skuinfo_jd()
+            self.proxy_info = False
+            
+        self.skuInfo = self.get_skuinfo_jd()
 
     def get_info_huihui(self):
         url = 'https://zhushou.huihui.cn/productSense?phu=https://item.jd.com/' + self.item_id + '.html'
@@ -306,9 +303,9 @@ class Crawler(object):
         s = requests.session()
         try:
             if data is not None: # get
-                if self.proxy:  # Using proxy
-                    logging.info('Using proxy %s to crawl %s', self.proxy, desc)
-                    res = s.get(url, cookies = cookies, headers = self.header, proxies = self.proxy, timeout=6)
+                if self.proxy_info:  # Using proxy
+                    logging.info('Using proxy %s to crawl %s', self.proxy_info, desc)
+                    res = s.get(url, cookies = cookies, headers = self.header, proxies = {"http": "http://{}".format(self.proxy_info)}, timeout=6)
                 else:  # Not using proxy
                     logging.info('Not using proxy to crawl %s', desc)
                     res = s.get(url, cookies = cookies, headers = self.header, timeout=6)
@@ -316,9 +313,9 @@ class Crawler(object):
                 return res
 
             else: # post
-                if self.proxy:  # Using proxy
-                    logging.info('Using proxy %s to crawl %s', self.proxy, desc)
-                    res = s.post(url, cookies = cookies, data = data, headers = self.header, proxies = self.proxy, timeout=6)
+                if self.proxy_info:  # Using proxy
+                    logging.info('Using proxy %s to crawl %s', self.proxy_info, desc)
+                    res = s.post(url, cookies = cookies, data = data, headers = self.header, proxies = {"http": "http://{}".format(self.proxy_info)}, timeout=6)
                 else:  # Not using proxy
                     logging.info('Not using proxy to crawl %s', desc)
                     res = s.post(url, cookies = cookies, data = data, headers = self.header, timeout=6)

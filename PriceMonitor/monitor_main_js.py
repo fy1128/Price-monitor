@@ -23,117 +23,56 @@ class Entrance(object):
     proxy_info_zhima = ()
 
     def _item_info_update(self, item):
+        #curr_item = item.__dict__
+        # do a copy to avoid old item being changed. some ways
+        # new_list = old_list[:]; new_list = list(ld_list); import copy, new_list = copy.deepcopy(old_list)
+        curr_item = dict(item)
+    
+
         column_id = item['column_id']
         item_id = str(item['item_id'])
         item_area = str(item['area'])
         sq = Sql()
-        pr = Proxy()
-        cr = Crawler(item_id, item_area)
-        if PROXY_CRAWL == 1:
-            # Using free proxy pool
-            while True:
-                proxy_info = pr.get_proxy(0)  # tuple: header, proxy
-                name = cr.get_name_jd(item_id, proxy_info[0], proxy_info[1])
-                if name:
-                    sq.update_item_name(column_id, name)
-                    while True:
-                        proxy = pr.get_proxy(1)  # tuple: header, proxy
-                        price = cr.get_price_jd(item_id, item_area, proxy[0], proxy[1])
-                        if price:
-                            sq.update_item_price(column_id, price)
+        cr = Crawler(item_id, item_area)        
+        
+        #check whether field was updated.
+        curr_item['updated'] = 1
 
-                            stock = cr.get_stock_jd(item_id, item_area, pr.get_ua(), proxy[0], proxy[1])
-                            if stock:
-                                sq.update_item_stock(column_id, stock)
+        name = cr.get_name_jd()
+        updated = sq.update_item_name(column_id, name)
+        curr_item['item_name'] = name
 
-                            huihui_info = cr.get_info_huihui(item_id, pr.get_ua(), proxy[0], proxy[1])
-                            if huihui_info:  # skip this if not crawled
-                                sq.update_item_max_price(column_id, huihui_info[0])
-                                sq.update_item_min_price(column_id, huihui_info[1])
-
-                            break
-                    break
-        elif PROXY_CRAWL == 2:
-            # Using zhima proxy
-            while True:
-                if not self.proxy_info_zhima:
-                    self.proxy_info_zhima = pr.get_proxy_zhima()
-                print('Name proxy:', self.proxy_info_zhima, item)
-                name = cr.get_name_jd(item_id, self.proxy_info_zhima[0], self.proxy_info_zhima[1])
-                if not name:
-                    self.proxy_info_zhima = ()
-                    time.sleep(20)
-                    continue
-                else:
-                    time.sleep(5)  # Avoid get proxy too fast
-                    sq.update_item_name(column_id, name)
-                    while True:
-                        if not self.proxy_info_zhima:
-                            self.proxy_info_zhima = pr.get_proxy_zhima()
-                        print('Price proxy:', self.proxy_info_zhima, items)
-                        price = cr.get_price_jd(item_id, item_area, self.proxy_info_zhima[0], self.proxy_info_zhima[1])
-                        if not price:
-                            self.proxy_info_zhima = ()
-                            time.sleep(20)
-                            continue
-                        else:
-                            sq.update_item_price(column_id, price)
-                            stock = cr.get_stock_jd(item_id, item_area, pr.get_ua(), self.proxy_info_zhima[0], self.proxy_info_zhima[1])
-                            if stock:
-                                sq.update_item_stock(column_id, stock)
-
-                            huihui_info = cr.get_info_huihui(item_id, pr.get_ua(), self.proxy_info_zhima[0], self.proxy_info_zhima[1])
-                            if huihui_info:  # skip this if not crawled
-                                sq.update_item_max_price(column_id, huihui_info[0])
-                                sq.update_item_min_price(column_id, huihui_info[1])
-
-                            break
-                    break
+        prices = cr.get_price_jd()
+        # tunple current price, discount
+        updated = price = sq.update_item_price(column_id, prices)
+        if not price:
+            curr_item['item_price'] = curr_item['discount'] = False
         else:
-            # Using local ip
-            #curr_item = item.__dict__
-            # do a copy to avoid old item being changed. some ways
-            # new_list = old_list[:]; new_list = list(ld_list); import copy, new_list = copy.deepcopy(old_list)
-            curr_item = dict(item)
-            
-            #check whether field was updated.
-            curr_item['updated'] = 1
+            curr_item['item_price'] = price[0]
+            curr_item['discount'] = price[1]
 
-            name = cr.get_name_jd()
-            updated = sq.update_item_name(column_id, name)
-            curr_item['item_name'] = name
+        subtitle = cr.get_subtitle_jd()
+        updated = sq.update_item_subtitle(column_id, subtitle)
+        curr_item['subtitle'] = subtitle
+        
+        ext = {}
+        ext['stock'] = cr.get_stock_jd()
+        ext['coupon'] = cr.get_coupon_jd()
+        ext['promo'] = cr.get_promo_jd()
+        sq.bulk_update_item_ext(column_id, ext)
+        curr_item['ext'] = ext
 
-            prices = cr.get_price_jd()
-            # tunple current price, discount
-            updated = price = sq.update_item_price(column_id, prices)
-            if not price:
-                curr_item['item_price'] = curr_item['discount'] = False
-            else:
-                curr_item['item_price'] = price[0]
-                curr_item['discount'] = price[1]
+        huihui_info = cr.get_info_huihui()
+        if huihui_info:  # skip this if not crawled
+            sq.update_item_max_price(column_id, huihui_info[0])
+            sq.update_item_min_price(column_id, huihui_info[1])
+            updated = curr_item['highest_price'] = huihui_info[0]
+            updated = curr_item['lowest_price'] = huihui_info[1]
 
-            subtitle = cr.get_subtitle_jd()
-            updated = sq.update_item_subtitle(column_id, subtitle)
-            curr_item['subtitle'] = subtitle
-            
-            ext = {}
-            ext['stock'] = cr.get_stock_jd()
-            ext['coupon'] = cr.get_coupon_jd()
-            ext['promo'] = cr.get_promo_jd()
-            sq.bulk_update_item_ext(column_id, ext)
-            curr_item['ext'] = ext
+        if not updated:
+            curr_item['updated'] = 0
 
-            huihui_info = cr.get_info_huihui()
-            if huihui_info:  # skip this if not crawled
-                sq.update_item_max_price(column_id, huihui_info[0])
-                sq.update_item_min_price(column_id, huihui_info[1])
-                updated = curr_item['highest_price'] = huihui_info[0]
-                updated = curr_item['lowest_price'] = huihui_info[1]
-
-            if not updated:
-                curr_item['updated'] = 0
-
-            return curr_item
+        return curr_item
 
     @staticmethod
     def _check_item():
