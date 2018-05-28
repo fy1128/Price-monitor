@@ -165,14 +165,15 @@ class Entrance(object):
 
     def run(self):
         while True:
+            start = time.time()
             items = self._check_item()  # dict of create_db.Monitor object
             items_info = CRAWLER_POOL.map(self._item_info_update, items)  # return two values as a tuple
             logging.warning('This loop updated information: %s', [{item['item_id']: item['item_name']} for item in items_info])
             self._send_email(items, items_info)
-            
-            # 
+            time_cost = (time.time() - start)
+
             RAND_INT = random.randint(-5,5)
-            SLEEP_INTERVAL_RANDOM = int(ITEM_CRAWL_TIME + RAND_INT)
+            SLEEP_INTERVAL_RANDOM = int(ITEM_CRAWL_TIME - time_cost + RAND_INT)
             if SLEEP_INTERVAL_RANDOM < 1:
                 SLEEP_INTERVAL_RANDOM = 1
 
