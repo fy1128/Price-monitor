@@ -32,7 +32,7 @@ class Crawler(object):
     def get_info_huihui(self):
         url = 'https://zhushou.huihui.cn/productSense?phu=https://item.jd.com/' + self.item_id + '.html'
         logging.debug('Ready to crawl huihui price URL：%s', url)
-        r = self.load_html(url, 'huihui')
+        r = self.load_html(url, 'huihui', None, None, True)
 
         try:
             max_price = r.json()['max']
@@ -299,14 +299,17 @@ class Crawler(object):
         logging.info('Item: %s, name: %s', self.item_id, name)
         return name
 
-    def load_html(self, url, desc='', cookies = {}, data=None):
+    def load_html(self, url, desc='', cookies = None, data = None, no_proxy = False):
         s = requests.session()
+        if cookies is None:
+            cookies = {}
+
         try:
             if self.proxy_info:
                 http_proxy = "http://{}".format(self.proxy_info)
 
             if data is not None: # get
-                if self.proxy_info:  # Using proxy
+                if self.proxy_info and not no_proxy:  # Using proxy
                     logging.info('Using proxy %s to crawl %s', self.proxy_info, desc)
                     res = s.get(url, cookies = cookies, headers = self.header, proxies = {"http": http_proxy, "https": http_proxy}, timeout=10)
                 else:  # Not using proxy
@@ -316,7 +319,7 @@ class Crawler(object):
                 return res
 
             else: # post
-                if self.proxy_info:  # Using proxy
+                if self.proxy_info and not no_proxy:  # Using proxy
                     logging.info('Using proxy %s to crawl %s', self.proxy_info, desc)
                     res = s.post(url, cookies = cookies, data = data, headers = self.header, proxies = {"http": http_proxy, "https": http_proxy}, timeout=10)
                 else:  # Not using proxy
