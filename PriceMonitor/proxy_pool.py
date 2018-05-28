@@ -51,8 +51,7 @@ class Proxy(object):
                     return False
                     
                 return True
-            except Exception as e:
-                print(e)
+            except Exception:
                 retry_count -= 1
 
         # 出错5次, 删除代理池中代理
