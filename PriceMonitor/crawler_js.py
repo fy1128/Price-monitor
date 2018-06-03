@@ -40,7 +40,7 @@ class Crawler(object):
             logging.info('max and min price: %s, %s', max_price, min_price)
             return max_price, min_price
 
-        except AttributeError as e:
+        except (json.decoder.JSONDecodeError, AttributeError) as e:
             logging.warning(e, 'Catch huihui failed with remote error')
             return False
 
@@ -118,7 +118,7 @@ class Crawler(object):
             try:
                 r = self.load_html(price_urls[k], 'prices of ' + platform[k])
                 data[k] = r.json()[0]['p']
-            except AttributeError as e:
+            except (json.decoder.JSONDecodeError, AttributeError) as e:
                 logging.warning("Get price from「" + platform[k] + "」failed...")
                 continue
                 pass
@@ -179,7 +179,7 @@ class Crawler(object):
             #Escape the " for eval use.
             #content = json.dumps(json.loads(r.text)["coupon"]).replace("true", "\"true\"").replace("false", "\"false\"")
             content = r.json()['coupon']
-        except (AttributeError, KeyError) as e:
+        except (json.decoder.JSONDecodeError, AttributeError, KeyError) as e:
             logging.warning(e, 'Catch coupon failed with remote error')
             return False
 
