@@ -71,8 +71,14 @@ class Sql(object):
                             []]
                 
                 if item['discount'] and float(item['discount']) <= DISCOUNT_LIMIT:
-                    alert_items.append([user[0].email, curr_item['item_name'], curr_item['subtitle'], item['item_price'], curr_item['item_price'],
-                                        curr_item['discount'], curr_item['item_id'], curr_item['column_id'], curr_item['highest_price'], curr_item['lowest_price']])
+                    alert_items.append([user[0].email,
+                                        curr_item['item_name'] if curr_item['item_name'] is not False else item['item_name'],
+                                        curr_item['subtitle'] if curr_item['subtitle'] is not False else '抓取子标题失败',
+                                        item['item_price'], curr_item['item_price'],
+                                        curr_item['discount'], curr_item['item_id'], curr_item['column_id'],
+                                        curr_item['highest_price'] if curr_item['highest_price'] is not None else '',
+                                        curr_item['lowest_price'] if curr_item['lowest_price'] is not None else ''
+                                      ])
 
                 if item['user_price']:
                     if curr_item['item_price'] and item['item_price'] is not None and float(curr_item['item_price']) != float(item['item_price']) and float(item['user_price']) > float(curr_item['item_price']):  # User-defined monitor price items
