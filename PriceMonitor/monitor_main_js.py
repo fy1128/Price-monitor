@@ -127,7 +127,7 @@ class Entrance(object):
             email_text = '物品：' + item[1] + '，\n' + \
                          '现在价格为：' + str(item[4]) + '，\n' + \
                          '上次监控价格为：' + str(item[3]) + '，\n' + \
-                         '降价幅度为：' + str(100 * float(item[3])) + '折，赶紧购买吧！\n' + \
+                         '降价幅度为：' + str(100 * float(item[5])) + '折，赶紧购买吧！\n' + \
                          '子标题：' + item[2] + '，\n' + \
                          '历史最高价参考：' + str(item[8]) + '，\n' + \
                          '历史最低价参考：' + str(item[9]) + '，\n' + \
