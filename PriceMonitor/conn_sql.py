@@ -70,7 +70,7 @@ class Sql(object):
                             curr_item['lowest_price'] if curr_item['lowest_price'] is not None else '',
                             []]
                 
-                if item['discount'] and float(item['discount']) <= DISCOUNT_LIMIT:
+                if (item['discount'] and float(item['discount']) <= DISCOUNT_LIMIT) and (curr_item['item_price'] and item['item_price'] is not None and float(curr_item['item_price']) != float(item['item_price'])):
                     alert_items.append([user[0].email,
                                         curr_item['item_name'] if curr_item['item_name'] is not False else item['item_name'],
                                         curr_item['subtitle'] if curr_item['subtitle'] is not False else '抓取子标题失败',
