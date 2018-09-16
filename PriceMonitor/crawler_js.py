@@ -349,8 +349,6 @@ class Crawler(object):
             return ''  # as False
 
     def get_skuinfo_jd(self):
-        print('--------------------------')
-        print(self.item_id)
         url = 'https://item.m.jd.com/item/mview2?datatype=1&callback=skuInfoCBA&cgi_source=mitem&sku=%s&t=%s' % (self.item_id, random.random())
         cookies = {'jdAddrId': self.area}
         r = self.load_html(url, 'skuInfo', cookies)
