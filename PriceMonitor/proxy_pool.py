@@ -41,13 +41,15 @@ class Proxy(object):
     def check_jd(proxy):
         logging.info('Validating name proxy: %s', proxy)
         header = Proxy.get_ua()
-        retry_count = 3
+        retry_count = 2
         while retry_count > 0:
             try:
                 http_proxy = "http://{}".format(proxy)
-                r = requests.get('https://item.m.jd.com/coupon/coupon.json?wareId=5089253', headers = header, proxies={"http": http_proxy, "https": http_proxy}, timeout=6) # Iphone X
+                #r = requests.get('https://item.m.jd.com/coupon/coupon.json?wareId=5089253', headers = header, proxies={"http": http_proxy, "https": http_proxy}, timeout=5) # Iphone X
+                r = requests.get('https://pm.3.cn/prices/mgets?origin=2&area=19_1684_19467_0&pdtk=&pduid=&pdpin=&pdbp=0&skuIds=5089253', headers = header, proxies={"http": http_proxy, "https": http_proxy}, timeout=5) # Iphone X
                 # 使用代理访问
-                if 'coupon' not in r.json():
+                #if 'coupon' not in r.json():
+                if 'op' not in r.json()[0]:
                     return False
                     
                 return True
