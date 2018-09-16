@@ -10,6 +10,7 @@ import time
 import random
 import operator
 import re
+import codecs
 
 class Crawler(object):
     # TODO: Move get_url to independent function
@@ -80,7 +81,7 @@ class Crawler(object):
             r = self.load_html(url, 'price')    
 
             try:
-                price = r.text
+                price = Crawler.fix_escape(r.text.strip())
             except AttributeError as e:
                 logging.warning(e, 'Catch price failed with remote error')
                 return prices
@@ -90,7 +91,7 @@ class Crawler(object):
                 return prices
             try:
                 price = price[2:-4]
-                price_js = json.loads(str(price))
+                price_js = json.loads(price)
                 price = price_js['p']
             except json.decoder.JSONDecodeError as e:
                 logging.warning('Captcha price error: %s', e)
@@ -156,7 +157,7 @@ class Crawler(object):
                 return False
 
             try:
-                stock_js = json.loads(str(r.text))
+                stock_js = json.loads(Crawler.fix_escape(r.text.strip()))
                 stock = stock_js[self.item_id]['StockState']
             except json.decoder.JSONDecodeError as e:
                 logging.warning('Captcha stock error: %s', e)
@@ -171,19 +172,25 @@ class Crawler(object):
         #Communication procedure seen on httptrace extension in Chrome.
         #headers = {"Connection": "keep-alive", "Content-Type": "application/x-www-form-urlencoded"}
         #req = urllib.request.Request(url = 'https://item.m.jd.com/coupon/coupon.json', data = bytes("wareId=%s"%self.id_i, "ascii"), headers = headers, method = "POST")
-        url = 'https://item.m.jd.com/coupon/coupon.json?wareId=' + self.item_id
-        data = bytes("wareId=%s" % self.item_id, "ascii")
-        r = self.load_html(url, 'coupon', {}, data)
+        
+        # Deprecated
+        #url = 'https://item.m.jd.com/coupon/coupon.json?wareId=' + self.item_id
+        #data = bytes("wareId=%s" % self.item_id, "ascii")
+        #r = self.load_html(url, 'coupon', {}, data)
+        
+        url = 'https://wq.jd.com/mjgj/fans/queryusegetcoupon?callback=getCouponListCBA&platform=3&cid=9434&sku={}&popId=8888&t={}'.format(self.item_id, random.random())
+        r = self.load_html(url, 'coupon', {})
 
         try:
             #Escape the " for eval use.
             #content = json.dumps(json.loads(r.text)["coupon"]).replace("true", "\"true\"").replace("false", "\"false\"")
-            content = r.json()['coupon']
+            #content = r.json()['coupon']
+            content = json.loads(Crawler.fix_escape(r.text.strip())[21:-13])['coupons']
         except (json.decoder.JSONDecodeError, AttributeError, KeyError) as e:
             logging.warning(e, 'Catch coupon failed with remote error')
             return False
 
-        content = sorted(content, key=operator.itemgetter('encryptedKey'))
+        content = sorted(content, key=operator.itemgetter('key'))
         for coupon in content:
             coupons.append(str(coupon["discount"])+"满"+str(coupon["quota"])+coupon["name"])
 
@@ -225,7 +232,7 @@ class Crawler(object):
         r = self.load_html(url, 'promotion')
 
         try:
-            promotion = r.text.strip()
+            promotion = Crawler.fix_escape(r.text.strip())
         except AttributeError as e:
             logging.warning(e, 'Catch promotion failed with remote error')
             return False
@@ -263,7 +270,7 @@ class Crawler(object):
         name = None
         if self.skuInfo:
             try:
-                logging.debug('Ready to get name from sku info!')
+                logging.info('Ready to get name from sku info!')
                 name = self.skuInfo['skuName'].strip()
             except KeyError as e:
                 logging.warning('Get name from sku info failed with error: %s', e)
@@ -271,7 +278,7 @@ class Crawler(object):
                 
         if name is None:
             url = 'https://item.jd.com/' + self.item_id + '.html'
-            logging.debug('Ready to crawl JD name URL：%s', url)
+            logging.info('Ready to crawl JD name URL：%s', url)
 
             r = self.load_html(url, 'name')
 
@@ -342,18 +349,53 @@ class Crawler(object):
             return ''  # as False
 
     def get_skuinfo_jd(self):
+        print('--------------------------')
+        print(self.item_id)
         url = 'https://item.m.jd.com/item/mview2?datatype=1&callback=skuInfoCBA&cgi_source=mitem&sku=%s&t=%s' % (self.item_id, random.random())
         cookies = {'jdAddrId': self.area}
         r = self.load_html(url, 'skuInfo', cookies)
+        #print(json.dumps(r.text, ensure_ascii=False))
+        #print(r.text.strip().replace('\\x', '\\u00')[11:-1])
+        #print(Crawler.fix_escape(r.text.strip())[11:-1])
+        
         try:
-            info = json.loads(r.text.strip()[11:-1])
+            info = json.loads(Crawler.fix_escape(r.text.strip()[11:-1]))
         except (json.decoder.JSONDecodeError, AttributeError) as e:
             logging.warning(e, 'Catch skuInfo failed with remote error')
             return False
 
         return info
-            
+
+    #@staticmethod
+    #def fix_xinvalid(m):
+    #    return chr(int(m.group(1), 16))
+
+    #@staticmethod
+    #def fix(s):
+    #    xinvalid = re.compile(r'\\x([0-9a-fA-F]{2})')
+    #    return xinvalid.sub(Crawler.fix_escape_xinvalid, s)
+    
+    #https://stackoverflow.com/questions/4020539/process-escape-sequences-in-a-string-in-python
+    @staticmethod
+    def fix_escape(s):
+        #return codecs.escape_decode(bytes(s, "utf-8"))[0].decode("utf-8")
         
+        ESCAPE_SEQUENCE_RE = re.compile(r'''
+            ( \\U........      # 8-digit hex escapes
+            | \\u....          # 4-digit hex escapes
+            | \\x..            # 2-digit hex escapes
+            | \\[0-7]{1,3}     # Octal escapes
+            | \\N\{[^}]+\}     # Unicode characters by name
+            | \\[abftv]  # Single-character escapes, but ignore '\\', "\'", '\"', '\r', '\n'
+            #| \\[\\'"abfnrtv]  # Single-character escapes
+            )''', re.UNICODE | re.VERBOSE)
+
+        def decode_match(match):
+            return codecs.decode(match.group(0), 'unicode-escape')
+
+        unescaped = ESCAPE_SEQUENCE_RE.sub(decode_match, s)
+        # manually unescape '\\"' and "\\'"
+        return re.sub(r'\\{2,}([\'\"])(\s+)?([^,}])', lambda m:'\\"' + m.group(3), unescaped)
             
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
