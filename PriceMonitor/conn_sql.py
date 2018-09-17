@@ -90,7 +90,7 @@ class Sql(object):
 
                 if 'stock' in alert_ext:
                     prev_stock = item['ext']['stock'] if 'stock' in item['ext'] else None
-                    if prev_stock != stock:
+                    if prev_stock in [None, 34] and prev_stock != stock:
                         base_item[10].append('货')
 
                 if 'coupon' in alert_ext:
