@@ -138,6 +138,7 @@ class Crawler(object):
             try:
                 logging.debug('Ready to get stock from sku info!')
                 stock = self.skuInfo['stock']['StockState']
+                stock = 34 if stock == 0 else stock
             except KeyError as e:
                 logging.warning('Get stock from sku info failed with error: %s', e)
                 pass
