@@ -4,6 +4,7 @@ import random
 import requests
 import logging
 import time
+from CONFIG import PROXY_POOL
 
 USER_AGENT_LIST = [
     "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.1 (KHTML, like Gecko) Chrome/22.0.1207.1 Safari/537.1",
@@ -63,7 +64,7 @@ class Proxy(object):
 
     def get_proxy(self):
         while True:
-            proxy = requests.get("http://127.0.0.1:5010/get/").content
+            proxy = requests.get(PROXY_POOL + "/get/").content
             if proxy != '':
                 proxy = proxy.decode()
                 if not self.check_jd(proxy):
@@ -76,7 +77,7 @@ class Proxy(object):
                 time.sleep(5)
 
     def delete_proxy(proxy):
-        requests.get("http://127.0.0.1:5010/delete/?proxy={}".format(proxy))
+        requests.get(PROXY_POOL + "/?proxy={}".format(proxy))
 
     @staticmethod
     def get_ua():

@@ -3,7 +3,6 @@
 from gevent import monkey  # IMPORT: must import gevent at first
 monkey.patch_all()
 from gevent.pool import Pool
-from proxy import Proxy
 from crawler_js import Crawler
 from conn_sql import Sql
 from mail import Mail
