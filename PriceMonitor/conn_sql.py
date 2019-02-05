@@ -88,11 +88,6 @@ class Sql(object):
                     if curr_item['item_name'] and item['item_name'] != curr_item['item_name']:
                         base_item[10].append('变')
 
-                if 'stock' in alert_ext:
-                    prev_stock = item['ext']['stock'] if 'stock' in item['ext'] else None
-                    if prev_stock in [None, 34] and prev_stock != stock:
-                        base_item[10].append('货')
-
                 if 'coupon' in alert_ext:
                     coupon = curr_item['ext']['coupon']
                     prev_coupon = item['ext']['coupon'] if 'coupon' in item['ext'] else None
@@ -104,6 +99,12 @@ class Sql(object):
                     prev_promo = item['ext']['promo'] if 'promo' in item['ext'] else None
                     if promo and len(promo) > 0 and prev_promo != promo:
                         base_item[10].append('促')
+
+                # check stock when has item needed to monitor
+                if 'stock' in alert_ext and len(base_item[10]) > 0:
+                    prev_stock = item['ext']['stock'] if 'stock' in item['ext'] else None
+                    if prev_stock in [None, 34] and prev_stock != stock:
+                        base_item[10].append('货')
 
                 if len(base_item[10]) > 0:
                     monitor_items.append(base_item)
