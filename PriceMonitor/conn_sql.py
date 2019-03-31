@@ -60,67 +60,93 @@ class Sql(object):
                 user = self.session.query(User).filter_by(column_id=item['user_id'])
                 #monitor_items[item_id] = []
                 
+                # initial keys if not exists.
+                if 'promo' not in item['ext']:
+                    item['ext']['promo'] = []
+                if 'coupon' not in item['ext']:
+                    item['ext']['coupon'] = []
+
                 # fields of item to be return
-                base_item = [user[0].email,
-                            curr_item['item_name'] if curr_item['item_name'] is not False else item['item_name'],
-                            curr_item['subtitle'] if curr_item['subtitle'] is not False else '抓取子标题失败',
-                            item['item_price'], curr_item['item_price'], 
-                            curr_item['user_price'], curr_item['item_id'], curr_item['column_id'],
-                            curr_item['highest_price'] if curr_item['highest_price'] is not None else '',
-                            curr_item['lowest_price'] if curr_item['lowest_price'] is not None else '',
-                            []]
+                base_item = {
+                            'user': user[0],
+                            'name': curr_item['item_name'] if curr_item['item_name'] is not False else item['item_name'],
+                            'subtitle': curr_item['subtitle'] if curr_item['subtitle'] is not False else '抓取子标题失败',
+                            'prev_price': item['item_price'],
+                            'curr_price': curr_item['item_price'], 
+                            'user_price': curr_item['user_price'],
+                            'promo': ', '.join(item['ext']['promo']) + ' => ' + ', '.join(curr_item['ext']['promo']),
+                            'coupon': ', '.join(item['ext']['coupon']) + ' => ' + ', '.join(curr_item['ext']['coupon']),
+                            'item_id': curr_item['item_id'],
+                            'column_id': curr_item['column_id'],
+                            'highest_price': curr_item['highest_price'] if curr_item['highest_price'] is not None else '',
+                            'lowest_price': curr_item['lowest_price'] if curr_item['lowest_price'] is not None else '',
+                            'flag': []
+                            }
                 
                 if (item['discount'] and float(item['discount']) <= DISCOUNT_LIMIT) and (curr_item['item_price'] and item['item_price'] is not None and float(curr_item['item_price']) != float(item['item_price'])):
-                    alert_items.append([user[0].email,
-                                        curr_item['item_name'] if curr_item['item_name'] is not False else item['item_name'],
-                                        curr_item['subtitle'] if curr_item['subtitle'] is not False else '抓取子标题失败',
-                                        item['item_price'], curr_item['item_price'],
-                                        curr_item['discount'], curr_item['item_id'], curr_item['column_id'],
-                                        curr_item['highest_price'] if curr_item['highest_price'] is not None else '',
-                                        curr_item['lowest_price'] if curr_item['lowest_price'] is not None else ''
-                                      ])
+                    alert_items.append({
+                                        'user': user[0],
+                                        'name': curr_item['item_name'] if curr_item['item_name'] is not False else item['item_name'],
+                                        'subtitle': curr_item['subtitle'] if curr_item['subtitle'] is not False else '抓取子标题失败',
+                                        'prev_price': item['item_price'],
+                                        'curr_price': curr_item['item_price'],
+                                        'discount': curr_item['discount'],                                                    
+                                        'promo': ', '.join(item['ext']['promo']) + ' => ' + ', '.join(curr_item['ext']['promo']),
+                                        'coupon': ', '.join(item['ext']['coupon']) + ' => ' + ', '.join(curr_item['ext']['coupon']),
+                                        'item_id': curr_item['item_id'],
+                                        'column_id': curr_item['column_id'],
+                                        'highest_price': curr_item['highest_price'] if curr_item['highest_price'] is not None else '',
+                                        'lowest_price': curr_item['lowest_price'] if curr_item['lowest_price'] is not None else ''
+                                      })
 
                 if item['user_price']:
                     if curr_item['item_price'] and item['item_price'] is not None and float(curr_item['item_price']) != float(item['item_price']) and float(item['user_price']) > float(curr_item['item_price']):  # User-defined monitor price items
-                        base_item[10].append('降')
+                        base_item['flag'].append('降')
 
                 if 'name' in alert_ext:
                     if curr_item['item_name'] and item['item_name'] != curr_item['item_name']:
-                        base_item[10].append('变')
+                        base_item['flag'].append('变')
 
                 if 'coupon' in alert_ext:
                     coupon = curr_item['ext']['coupon']
                     prev_coupon = item['ext']['coupon'] if 'coupon' in item['ext'] else None
                     if coupon and len(coupon) > 0 and prev_coupon != coupon:
-                        base_item[10].append('券')
+                        base_item['flag'].append('券')
                 
                 if 'promo' in alert_ext:
                     promo = curr_item['ext']['promo']
                     prev_promo = item['ext']['promo'] if 'promo' in item['ext'] else None
                     if promo and len(promo) > 0 and prev_promo != promo:
-                        base_item[10].append('促')
+                        base_item['flag'].append('促')
 
                 # check stock when has item needed to monitor
-                if 'stock' in alert_ext and len(base_item[10]) > 0:
+                if 'stock' in alert_ext and len(base_item['flag']) > 0:
                     prev_stock = item['ext']['stock'] if 'stock' in item['ext'] else None
                     if prev_stock in [None, 34] and prev_stock != stock:
-                        base_item[10].append('货')
+                        base_item['flag'].append('货')
 
-                if len(base_item[10]) > 0:
+                if len(base_item['flag']) > 0:
                     monitor_items.append(base_item)
 
         # append the previous items failed to send mail
         items_need_mail = self.session.query(Monitor).filter_by(status=1).limit(10)
         for item in items_need_mail:
             user = self.session.query(User).filter_by(column_id=item.user_id)
-            monitor_items.append([user[0].email,
-                                item.item_name if item.item_name is not None else '',
-                                item.subtitle if item.subtitle is not None else '',
-                                item.last_price, item.item_price, 
-                                item.user_price, item.item_id, item.column_id,
-                                item.highest_price if item.highest_price is not None else '',
-                                item.lowest_price if item.lowest_price is not None else '',
-                                []])
+            monitor_items.append({
+                                'user': user[0],
+                                'name': item.item_name if item.item_name is not None else '',
+                                'subtitle': item.subtitle if item.subtitle is not None else '',
+                                'prev_price': item.last_price,
+                                'curr_price': item.item_price, 
+                                'user_price': item.user_price,
+                                'promo': ', '.join(item.ext.promo) if hasattr(item.ext, 'promo') else '',
+                                'coupon': ', '.join(item.ext.coupon) if hasattr(item.ext, 'coupon') else '',
+                                'item_id': item.item_id,
+                                'column_id': item.column_id,
+                                'highest_price': item.highest_price if item.highest_price is not None else '',
+                                'lowest_price': item.lowest_price if item.lowest_price is not None else '',
+                                'flag': []
+                                })
             
         return monitor_items, alert_items
 

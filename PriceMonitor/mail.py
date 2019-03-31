@@ -3,8 +3,11 @@
 from email.header import Header
 from email.mime.text import MIMEText
 from email.utils import parseaddr, formataddr
-from CONFIG import MAIL_SMTP, MAIL_SMTP_NEED_AUTH, MAIL_SMTP_ACCOUNT, MAIL_SMTP_PASSWORD
+from CONFIG import MAIL_SMTP, MAIL_SMTP_NEED_AUTH, MAIL_SMTP_ACCOUNT, MAIL_SMTP_PASSWORD, NOTICE_ENDPOINT
 import smtplib
+import requests
+import urllib, base64, json
+import re
 from os import path
 import os
 import logging
@@ -35,7 +38,7 @@ class Mail(object):
         self.address = address
         self.to_addr = address
         # From above to below: mail content, sender nickname, receiver nickname, subject
-        self.msg = MIMEText(self.text, 'plain', 'utf-8')
+        self.msg = MIMEText(self.text, 'html', 'utf-8')
         self.msg['From'] = self._format_addr(self.sender + '<' + self.from_addr + '>')
         self.msg['To'] = self._format_addr(self.receiver + '<' + self.to_addr + '>')
         self.msg['Subject'] = Header(self.subject, 'utf-8').encode()
@@ -62,6 +65,37 @@ class Mail(object):
         server.sendmail(self.from_addr, [self.to_addr], self.msg.as_string())
         logging.info('----This email\'s info: %s, %s, %s', self.text, self.receiver, self.to_addr)
         server.quit()
+
+class Messager(object):
+    def __init__(self, text, subject, endpoint, endpoint_data):
+        msg = '{}\n{}'.format(subject, text)
+        msg = str(base64.b64encode(urllib.parse.quote(msg).encode('utf-8')), 'utf-8')
+        self.msg = msg
+
+        data = Messager.is_json(endpoint_data)
+
+        if data:
+            data['msg'] = msg
+            self.data = data
+
+        self.url = endpoint.replace('{msg}', msg)
+        
+    def send(self):
+        if hasattr(self, 'data'):
+            method = 'post'
+            requests.post(self.url, self.data, timeout = 30)
+        else:
+            method = 'get'
+            requests.get(self.url, timeout = 30)
+        logging.info('----This message\'s has been \'%s\' to: , %s', method, self.url)
+
+    @staticmethod
+    def is_json(str):
+        try:
+            json_object = json.loads(str)
+        except ValueError as e:
+            return False
+        return json_object
 
 
 if __name__ == '__main__':

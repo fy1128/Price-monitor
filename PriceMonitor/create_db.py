@@ -4,7 +4,7 @@
 from gevent import monkey  # IMPORT: must import gevent at first
 monkey.patch_all()
 from sqlalchemy import create_engine, Column, ForeignKey
-from sqlalchemy import TypeDecorator, Integer, String, DateTime, Numeric, Boolean, BIGINT
+from sqlalchemy import TypeDecorator, Integer, String, Text, DateTime, Numeric, Boolean, BIGINT
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import relationship
@@ -42,6 +42,8 @@ class User(Base):
     user_name = Column(String(32), nullable=False, unique=True)
     email = Column(String(64), nullable=False, unique=True)
     category = Column(String(128))
+    endpoint = Column(String(255))
+    endpoint_data = Column(Text())
 
 
 class Monitor(Base):

@@ -316,7 +316,7 @@ class Crawler(object):
             if self.proxy_info:
                 http_proxy = "http://{}".format(self.proxy_info)
 
-            if data is not None: # get
+            if data is None: # get
                 if self.proxy_info and not no_proxy:  # Using proxy
                     logging.info('Using proxy %s to crawl %s', self.proxy_info, desc)
                     res = s.get(url, cookies = cookies, headers = self.header, proxies = {"http": http_proxy, "https": http_proxy}, timeout=10)

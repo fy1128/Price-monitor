@@ -5,8 +5,8 @@ monkey.patch_all()
 from gevent.pool import Pool
 from crawler_js import Crawler
 from conn_sql import Sql
-from mail import Mail
-from CONFIG import ITEM_CRAWL_TIME, UPDATE_TIME, Email_TIME, PROXY_CRAWL, THREAD_NUM
+from mail import Mail, Messager
+from CONFIG import ITEM_CRAWL_TIME, UPDATE_TIME, Email_TIME, PROXY_CRAWL, THREAD_NUM, NOTICE_EMAIL, NOTICE_ENDPOINT
 import logging
 import logging.config
 import time
@@ -82,7 +82,10 @@ class Entrance(object):
         return items
 
     @staticmethod
-    def _send_email(prev_items = None, curr_items = None):
+    def _send_notice(prev_items = None, curr_items = None):
+        if not NOTICE_EMAIL and NOTICE_ENDPOINT == "":
+            return False
+
         # Send email in a loop, avoid sending simultaneously.
         sq = Sql()
         items = sq.check_item_need_to_remind(prev_items, curr_items)
@@ -90,75 +93,101 @@ class Entrance(object):
         items_stdout =[]
         mail_map = {}
         for item in items[0]:  # email, item_name, item_price, user_price, item_id, column_id
-            if item[0] not in mail_map:
-                mail_map[item[0]] = {'mon': {'ids': [], 'msg': []}}
+            user_mail = item['user'].email
+            if user_mail not in mail_map:
+                mail_map[user_mail] = {'mon': {'ids': [], 'msg': []}, 'user': item['user']}
 
             # skip duplicate item in items_need_mail
-            if item[7] in mail_map[item[0]]['mon']['ids']:
+            if item['column_id'] in mail_map[user_mail]['mon']['ids']:
                 continue
 
-            mail_map[item[0]]['mon']['ids'].append(item[7])
+            mail_map[user_mail]['mon']['ids'].append(item['column_id'])
                 
-            item_url = 'https://item.jd.com/' + str(item[6]) + '.html'
-            email_text = ', '.join(item[10]) + '！\n' + \
-                         '物品：' + item[1] + '，\n' + \
-                         '现在价格为：' + str(item[4]) + '，\n' + \
-                         '上次监控价格为：' + str(item[3]) + '，\n' + \
-                         '您设定的价格为：' + str(item[5]) + '，赶紧购买吧！\n' + \
-                         '子标题：' + item[2] + '，\n' + \
-                         '历史最高价参考：' + str(item[8]) + '，\n' + \
-                         '历史最低价参考：' + str(item[9]) + '，\n' + \
+            item_url = 'https://item.jd.com/' + str(item['item_id']) + '.html'
+            item_url = '<a href="{}">{}</a>'.format(item_url, item_url)
+            email_text = ', '.join(item['flag']) + '！\n' + \
+                         '物品：' + item['name'] + '，\n' + \
+                         '现在价格为：' + str(item['curr_price']) + '，\n' + \
+                         '上次监控价格为：' + str(item['prev_price']) + '，\n' + \
+                         '您设定的价格为：' + str(item['user_price']) + '，赶紧购买吧！\n' + \
+                         '子标题：' + item['subtitle'] + '，\n' + \
+                         '促销：' + item['promo'] + '，\n' + \
+                         '优惠券：' + item['coupon'] + '，\n' + \
+                         '历史最高价参考：' + str(item['highest_price']) + '，\n' + \
+                         '历史最低价参考：' + str(item['lowest_price']) + '，\n' + \
                          item_url
 
-            items_stdout.append({item[6]: item[1]})
-            mail_map[item[0]]['mon']['msg'].append(email_text)
+            items_stdout.append({item['item_id']: item['name']})
+            mail_map[user_mail]['mon']['msg'].append(email_text)
 
         email_subject = '您监控类别中的物品大幅度降价了！'
         for item in items[1]:  # email, item_name, item_price, discount, item_id, column_id, last_price
-            if item[0] not in mail_map:
-                mail_map[item[0]] = {'alert': {'ids': [], 'msg': []}}
+            user_mail = item['user'].email
+            if user_mail not in mail_map:
+                mail_map[user_mail] = {'alert': {'ids': [], 'msg': []}, 'user': item['user']}
 
-            if 'alert' not in mail_map[item[0]]:
-                mail_map[item[0]]['alert'] = {'ids': [], 'msg': []}
+            if 'alert' not in mail_map[user_mail]:
+                mail_map[user_mail]['alert'] = {'ids': [], 'msg': []}
 
-            mail_map[item[0]]['alert']['ids'].append(item[7])
-            item_url = 'https://item.jd.com/' + str(item[6]) + '.html'
-            email_text = '物品：' + item[1] + '，\n' + \
-                         '现在价格为：' + str(item[4]) + '，\n' + \
-                         '上次监控价格为：' + str(item[3]) + '，\n' + \
-                         '降价幅度为：' + str(100 * float(item[5])) + '折，赶紧购买吧！\n' + \
-                         '子标题：' + item[2] + '，\n' + \
-                         '历史最高价参考：' + str(item[8]) + '，\n' + \
-                         '历史最低价参考：' + str(item[9]) + '，\n' + \
+            mail_map[user_mail]['alert']['ids'].append(item['column_id'])
+            item_url = 'https://item.jd.com/' + str(item['item_id']) + '.html'
+            item_url = '<a href="{}">{}</a>'.format(item_url, item_url)
+            email_text = '物品：' + item['name'] + '，\n' + \
+                         '现在价格为：' + str(item['curr_price']) + '，\n' + \
+                         '上次监控价格为：' + str(item['prev_price']) + '，\n' + \
+                         '降价幅度为：' + str(100 * float(item['user_price'])) + '折，赶紧购买吧！\n' + \
+                         '子标题：' + item['subtitle'] + '，\n' + \
+                         '促销：' + item['promo'] + '，\n' + \
+                         '优惠券：' + item['coupon'] + '，\n' + \
+                         '历史最高价参考：' + str(item['highest_price']) + '，\n' + \
+                         '历史最低价参考：' + str(item['lowest_price']) + '，\n' + \
                          item_url
 
-            items_stdout.append({item[6]: item[1]})
-            mail_map[item[0]]['alert']['msg'].append(email_text)
+            items_stdout.append({item['item_id']: item['name']})
+            mail_map[user_mail]['alert']['msg'].append(email_text)
 
             
-        logging.warning('This loop sent email: %s', items_stdout)
+        logging.warning('This loop sent email / notice: %s', items_stdout)
 
         items_processed = {'s': [], 'f': []}
-        for user, msg in mail_map.items():
+
+        for user_mail, msg in mail_map.items():
+            user = msg['user']
+            del msg['user']
             for type, msg_text in msg.items():
                 if type == 'mon':
-                    email_subject = '您监控的物品有变更！'
+                    subject = '您监控的物品有变更！'
 
                 elif type == 'alert':
-                    email_subject = '您监控类别中的物品大幅度降价了！'
+                    subject = '您监控类别中的物品大幅度降价了！'
 
-                try:
-                    send_email = Mail('\n\n\n'.join(msg_text['msg']), 'admin', 'user', email_subject, user)
-                    send_email.send()
-                    items_processed['s'] = items_processed['s'] + msg_text['ids']
-                    time.sleep(Email_TIME)
-                except Exception as e:
-                    logging.critical('Sent email failure with error: %s, skip in this loop: %s', e, user)
-                    items_processed['f'] = items_processed['f'] + msg_text['ids']
-                    continue
+                if NOTICE_EMAIL:
+                    try:
+                        send_email = Mail('\n\n\n'.join(msg_text['msg']), 'admin', 'user', subject, user_mail)
+                        send_email.send()
+                        items_processed['s'] = items_processed['s'] + msg_text['ids']
+                        time.sleep(Email_TIME)
+                    except Exception as e:
+                        logging.critical('Sent email failure with error: %s, skip in this loop: %s', e, user_mail)
+                        items_processed['f'] = items_processed['f'] + msg_text['ids']
+                        pass
 
-            logging.warning('Finish sending email to user: %s', user)
+                if NOTICE_ENDPOINT and hasattr(user, 'endpoint') and user.endpoint != '':
+                    try:
+                        send_message = Messager('\n\n\n'.join(msg_text['msg']), subject, user.endpoint, user.endpoint_data)
+                        send_message.send()
+                        items_processed['s'] = items_processed['s'] + msg_text['ids']
+                        time.sleep(Email_TIME)
+                    except Exception as e:
+                        logging.critical('Sent notice to custom endpoint failure with error: %s, skip in this loop: %s', e, user_mail)
+                        items_processed['f'] = items_processed['f'] + msg_text['ids']
+                        pass
+                        
+            logging.warning('Finish sending email / notice to user: %s', user_mail)
         
+        # remove duplicate ids
+        items_processed['f'] = list(set(items_processed['f']))
+        items_processed['s'] = list(set(items_processed['s']))
         sq.update_status(items_processed['f'], 1)
         sq.update_status(items_processed['s'], 0)
 
@@ -168,7 +197,7 @@ class Entrance(object):
             items = self._check_item()  # dict of create_db.Monitor object
             items_info = CRAWLER_POOL.map(self._item_info_update, items)  # return two values as a tuple
             logging.warning('This loop updated information: %s', [{item['item_id']: item['item_name']} for item in items_info])
-            self._send_email(items, items_info)
+            self._send_notice(items, items_info)
             time_cost = (time.time() - start)
 
             RAND_INT = random.randint(-5,5)
