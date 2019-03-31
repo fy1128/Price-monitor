@@ -91,6 +91,8 @@ class Messager(object):
 
     @staticmethod
     def is_json(str):
+        if str is None:
+            return False
         try:
             json_object = json.loads(str)
         except ValueError as e:
