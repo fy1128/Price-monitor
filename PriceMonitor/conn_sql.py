@@ -47,7 +47,7 @@ class Sql(object):
             curr_items = {item['item_id']: item if isinstance(item, dict) else item.__dict__ for item in items}
             for item in prev_items:
                 item_id = item['item_id']
-                item['ext'] = item['ext'] if isinstance(item['ext'], dict) else {}
+                
                 curr_item = curr_items[item_id]
                 if curr_item['updated'] == 0:
                     continue
@@ -57,14 +57,17 @@ class Sql(object):
                 if not stock or stock == 34:
                     continue
 
+                # initial keys if not exists.
+                item['ext'] = item['ext'] if isinstance(item['ext'], dict) else {}
+                for temp_key in ['promo', 'coupon']:
+                    for temp_item in [item, curr_item]:
+                        if temp_key not in temp_item['ext'] or not temp_item['ext'][temp_key]:
+                            temp_item['ext'][temp_key] = []
+
+                del temp_item
+
                 user = self.session.query(User).filter_by(column_id=item['user_id'])
                 #monitor_items[item_id] = []
-                
-                # initial keys if not exists.
-                if 'promo' not in item['ext']:
-                    item['ext']['promo'] = []
-                if 'coupon' not in item['ext']:
-                    item['ext']['coupon'] = []
 
                 # fields of item to be return
                 base_item = {
@@ -84,20 +87,9 @@ class Sql(object):
                             }
                 
                 if (item['discount'] and float(item['discount']) <= DISCOUNT_LIMIT) and (curr_item['item_price'] and item['item_price'] is not None and float(curr_item['item_price']) != float(item['item_price'])):
-                    alert_items.append({
-                                        'user': user[0],
-                                        'name': curr_item['item_name'] if curr_item['item_name'] is not False else item['item_name'],
-                                        'subtitle': curr_item['subtitle'] if curr_item['subtitle'] is not False else '抓取子标题失败',
-                                        'prev_price': item['item_price'],
-                                        'curr_price': curr_item['item_price'],
-                                        'discount': curr_item['discount'],                                                    
-                                        'promo': ', '.join(item['ext']['promo']) + ' => ' + ', '.join(curr_item['ext']['promo']),
-                                        'coupon': ', '.join(item['ext']['coupon']) + ' => ' + ', '.join(curr_item['ext']['coupon']),
-                                        'item_id': curr_item['item_id'],
-                                        'column_id': curr_item['column_id'],
-                                        'highest_price': curr_item['highest_price'] if curr_item['highest_price'] is not None else '',
-                                        'lowest_price': curr_item['lowest_price'] if curr_item['lowest_price'] is not None else ''
-                                      })
+                    alert_items.append(dict(base_item))
+                    alert_items[-1]['discount'] = curr_item['discount']
+                    del alert_items[-1]['flag']
 
                 if item['user_price']:
                     if curr_item['item_price'] and item['item_price'] is not None and float(curr_item['item_price']) != float(item['item_price']) and float(item['user_price']) > float(curr_item['item_price']):  # User-defined monitor price items
@@ -139,8 +131,8 @@ class Sql(object):
                                 'prev_price': item.last_price,
                                 'curr_price': item.item_price, 
                                 'user_price': item.user_price,
-                                'promo': ', '.join(item.ext.promo) if hasattr(item.ext, 'promo') else '',
-                                'coupon': ', '.join(item.ext.coupon) if hasattr(item.ext, 'coupon') else '',
+                                'promo': ', '.join(item.ext.promo) if hasattr(item.ext, 'promo') and item.ext.promo else '',
+                                'coupon': ', '.join(item.ext.coupon) if hasattr(item.ext, 'coupon') and item.ext.coupon else '',
                                 'item_id': item.item_id,
                                 'column_id': item.column_id,
                                 'highest_price': item.highest_price if item.highest_price is not None else '',
