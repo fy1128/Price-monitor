@@ -3,7 +3,8 @@
 from email.header import Header
 from email.mime.text import MIMEText
 from email.utils import parseaddr, formataddr
-from CONFIG import MAIL_SMTP, MAIL_SMTP_NEED_AUTH, MAIL_SMTP_ACCOUNT, MAIL_SMTP_PASSWORD, NOTICE_ENDPOINT
+from CONFIG import EMAIL_MIME_TYPE, MAIL_SMTP, MAIL_SMTP_NEED_AUTH, MAIL_SMTP_ACCOUNT, MAIL_SMTP_PASSWORD
+from formater import strip_tags
 import smtplib
 import requests
 import urllib, base64, json
@@ -31,6 +32,12 @@ class Mail(object):
             # server = smtplib.SMTP(self.smtp_server, 25)  # 25 normalï¼<8c>465 SSL
             self.server = smtplib.SMTP_SSL(smtp_server, 465)
             # server.starttls()  # SSL required
+            
+        if EMAIL_MIME_TYPE == 'html':
+            text = text.replace('\n', '<br />')
+        else:
+            text = strip_tags(text)
+
         self.text = text
         self.sender = sender
         self.receiver = receiver
@@ -38,7 +45,7 @@ class Mail(object):
         self.address = address
         self.to_addr = address
         # From above to below: mail content, sender nickname, receiver nickname, subject
-        self.msg = MIMEText(self.text, 'html', 'utf-8')
+        self.msg = MIMEText(self.text, EMAIL_MIME_TYPE, 'utf-8')
         self.msg['From'] = self._format_addr(self.sender + '<' + self.from_addr + '>')
         self.msg['To'] = self._format_addr(self.receiver + '<' + self.to_addr + '>')
         self.msg['Subject'] = Header(self.subject, 'utf-8').encode()

@@ -6,7 +6,7 @@ from gevent.pool import Pool
 from crawler_js import Crawler
 from conn_sql import Sql
 from mail import Mail, Messager
-from CONFIG import ITEM_CRAWL_TIME, UPDATE_TIME, Email_TIME, PROXY_CRAWL, THREAD_NUM, NOTICE_EMAIL, NOTICE_ENDPOINT
+from CONFIG import ITEM_CRAWL_TIME, UPDATE_TIME, Email_TIME, PROXY_CRAWL, THREAD_NUM, NOTICE_EMAIL, NOTICE_ENDPOINT_LENGTH
 import logging
 import logging.config
 import time
@@ -172,10 +172,15 @@ class Entrance(object):
                         items_processed['f'] = items_processed['f'] + msg_text['ids']
                         pass
 
-                if NOTICE_ENDPOINT and hasattr(user, 'endpoint') and user.endpoint != '':
+                if NOTICE_ENDPOINT_LENGTH and hasattr(user, 'endpoint') and user.endpoint != '':
                     try:
-                        send_message = Messager('\n\n\n'.join(msg_text['msg']), subject, user.endpoint, user.endpoint_data)
-                        send_message.send()
+                        if NOTICE_ENDPOINT_LENGTH <= -1:
+                            send_message = Messager('\n\n\n'.join(msg_text['msg']), subject, user.endpoint, user.endpoint_data)
+                            send_message.send()
+                        else:
+                            for i in range(0,len(msg_text['msg']), NOTICE_ENDPOINT_LENGTH):
+                                send_message = Messager('\n\n\n'.join(msg_text['msg'][i:i+NOTICE_ENDPOINT_LENGTH]), subject, user.endpoint, user.endpoint_data)
+                                send_message.send()
                         items_processed['s'] = items_processed['s'] + msg_text['ids']
                         time.sleep(Email_TIME)
                     except Exception as e:

@@ -10,6 +10,7 @@ DISCOUNT_LIMIT = 0.8  # Set alert mail discount
 ALERT_EXT = "stock,promo,coupon" # Set alert mail with other item changed
 PROXY_POOL = "http://127.0.0.1:5010" # proxy_pool server, must start with scheme
 NOTICE_EMAIL = 1 # 1 to enable
+EMAIL_MIME_TYPE = 'plain' # or 'html'
 Email_TIME = 10  # Send email sleep time
 MAIL_SMTP = "" # exmaple: 127.0.0.1:25, or 127.0.0.1:465, leave empty to use settings in mailbox.txt
 MAIL_SMTP_NEED_AUTH = 0 # 0 disabled, 1 enabled and will use the follow data as a valid auth user.
@@ -17,6 +18,7 @@ MAIL_SMTP_ACCOUNT = "" # will be used as email from, if leave empty, email may b
 MAIL_SMTP_PASSWORD = ""
 
 #  send message to custom endpoint
-# 1 to enabled. example: add http://127.0.0.1/{msg} to the column 'endpoint' of 'user' table, {msg} will be replace with 'subject' and 'content'.
+# 0 to disabled, -1 to send full content in single message, >= 1 will be cut to send multiple message.
+# example: add http://127.0.0.1/{msg} to the column 'endpoint' of 'user' table, {msg} will be replace with 'subject' and 'content'.
 # can also post data, open db and fill 'endpoint_data' with json data in user table.
-NOTICE_ENDPOINT = 0 
+NOTICE_ENDPOINT_LENGTH = 0
