@@ -64,15 +64,16 @@ class Proxy(object):
 
     def get_proxy(self):
         while True:
-            proxy = requests.get(PROXY_POOL + "/get/").content
-            if proxy != '':
-                proxy = proxy.decode()
+            res = requests.get(PROXY_POOL + "/get/")
+            try:
+                data = res.json()
+                proxy = data['proxy']
                 if not self.check_jd(proxy):
                     logging.warning('Validate proxy failure, retrying')
                     continue
                 logging.info('Validate SUCCESS，using proxy: %s', proxy)
                 return proxy
-            else:
+            except Exception:
                 logging.critical('No proxy now from remote server, retrying')
                 time.sleep(5)
 
