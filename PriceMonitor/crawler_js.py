@@ -193,7 +193,7 @@ class Crawler(object):
 
         content = sorted(content, key=operator.itemgetter('key'))
         for coupon in content:
-            coupons.append(str(coupon["discount"])+"满"+str(coupon["quota"])+coupon["name"])
+            coupons.append(str(coupon["discount"])+"满"+str(coupon["quota"]))
 
         logging.info('Item: %s, coupon JS: %s', self.item_id, coupons)
         return coupons

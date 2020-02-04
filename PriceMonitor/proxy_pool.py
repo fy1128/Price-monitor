@@ -64,8 +64,8 @@ class Proxy(object):
 
     def get_proxy(self):
         while True:
-            res = requests.get(PROXY_POOL + "/get/")
             try:
+                res = requests.get(PROXY_POOL + "/get/")
                 data = res.json()
                 proxy = data['proxy']
                 if not self.check_jd(proxy):
