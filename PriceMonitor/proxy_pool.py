@@ -58,8 +58,8 @@ class Proxy(object):
                 retry_count -= 1
 
         # 出错5次, 删除代理池中代理
-        logging.info('Proxy %s is invalid, deleting...', proxy)
-        Proxy.delete_proxy(proxy)
+        #logging.info('Proxy %s is invalid, deleting...', proxy)
+        #Proxy.delete_proxy(proxy)
         return False
 
     def get_proxy(self):
